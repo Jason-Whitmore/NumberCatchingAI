@@ -2,6 +2,7 @@
 #include <vector>
 #include <queue>
 #include <random>
+#include <stdlib.h>
 struct NumberRecord{
     int row;
     int column;
@@ -15,10 +16,11 @@ class NumberCatchingAI{
     void printGame();
     
     std::vector<std::vector<char>> environment;
-    std::queue<NumberRecord> numbers;
+    std::deque<NumberRecord> numbers;
 
     double score;
     int turnLimit;
+    int turnNumber;
 
     int playerLocation;
 

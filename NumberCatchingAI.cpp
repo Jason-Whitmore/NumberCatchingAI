@@ -12,6 +12,7 @@ NumberCatchingAI::NumberCatchingAI(){
 
     for(int r = 0; r < numRows; r++){
         newRow = std::vector<char>();
+        newRow.clear();
         for(int c = 0; c < numCols; c++){
             newRow.push_back(' ');
         }
@@ -24,7 +25,7 @@ NumberCatchingAI::NumberCatchingAI(){
     int colLocation;
     int value;
     NumberRecord n;
-    for(int row = 4; row < 25; row += 5){
+    for(int row = 0; row < 25; row += 5){
         colLocation = getRandomInt(0, 15);
         value = getRandomInt(1,9);
         environment[row][colLocation] = '0' + value;
@@ -32,8 +33,11 @@ NumberCatchingAI::NumberCatchingAI(){
         n.row = row;
         n.value = value;
 
-        numbers.emplace(n);
+        numbers.push_front(n);
     }
+
+    score = 0;
+    turnNumber = 0;
 
 
 }
@@ -49,6 +53,56 @@ void NumberCatchingAI::printGame(){
     }
 
     std::cout << "-------------------------------" << std::endl;
+    std::cout << std::endl << "Score: " << score << std::endl << "Turn Number: " << turnNumber << std::endl;
+}
+
+void NumberCatchingAI::performAction(int action){
+    //move player
+    int newPos = playerLocation + action;
+    if(newPos < 0){
+        newPos = 0;
+    }
+
+    if(newPos > 14){
+        newPos = 14;
+    }
+    environment[24][playerLocation] = ' ';
+    playerLocation = newPos;
+    environment[24][playerLocation] = 'U';
+
+    //minor movement penalty
+    score -= 0.0;
+
+    //move numbers down
+
+    NumberRecord n;
+    //adjust score if needed
+    for(int i = 0; i < 5; i++){
+        environment[numbers[i].row][numbers[i].column] = ' ';
+        numbers[i].row += 1;
+        if(numbers[i].row == 24){
+            if(numbers[i].column == playerLocation){
+                score += numbers[i].value;
+            } else {
+                score -= numbers[i].value;
+            }
+
+            numbers.pop_front();
+
+            //insert new number
+            n.row = 0;
+            n.column = getRandomInt(0, 15);
+            n.value = getRandomInt(1,9);
+            numbers.push_back(n);
+        }
+        
+    }
+
+    //adjust environment
+    for(int i = 0; i < 5; i++){
+        //std::cout << "r " << numbers[i].row << " c " << numbers[i].column << std::endl;
+        environment[numbers[i].row][numbers[i].column] = '0' + numbers[i].value;
+    }
 }
 
 int NumberCatchingAI::getRandomInt(int min, int max){
@@ -65,9 +119,13 @@ int NumberCatchingAI::getRandomInt(int min, int max){
 
 
 int main(){
-    std::cout << "Hello world!" << std::endl;
     NumberCatchingAI n = NumberCatchingAI();
 
-    n.printGame();
+    for(int i = 0; i < 100; i++){
+        n.performAction(NumberCatchingAI::getRandomInt(-1,2));
+        n.printGame();
+        n.turnNumber += 1;
+        //std::cin.get();
+    }
     
 }
