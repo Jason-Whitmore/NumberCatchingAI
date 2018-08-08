@@ -120,12 +120,24 @@ int NumberCatchingAI::getRandomInt(int min, int max){
 
 int main(){
     NumberCatchingAI n = NumberCatchingAI();
+    std::vector<int> config = std::vector<int>();
+    config.push_back(8);
+    config.push_back(8);
 
-    for(int i = 0; i < 100; i++){
-        n.performAction(NumberCatchingAI::getRandomInt(-1,2));
-        n.printGame();
-        n.turnNumber += 1;
-        //std::cin.get();
+    //compiles with: g++ =std=c++11 *.h *.cpp NeuralNetwork/*.h NeuralNetwork/*.cpp
+
+    NeuralNetwork nn = NeuralNetwork(1,1,config);
+
+    Data* inputs = new Data(6,1);
+    Data* outputs = new Data(6,1);
+
+    for(int i = 0; i < 6; i++){
+        inputs->setIndex(i,0,i);
+        outputs->setIndex(i,0,i * i);
     }
-    
+
+    nn.setTrainingInputs(inputs);
+    nn.setTrainingOutputs(outputs);
+
+    nn.gradientDescent(0, 100000, 0.0001);
 }

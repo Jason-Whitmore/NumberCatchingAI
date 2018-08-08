@@ -1,8 +1,15 @@
+
+
+
+
+#include "NeuralNetwork/NeuralNetwork.h"
 #include <iostream>
 #include <vector>
 #include <queue>
 #include <random>
 #include <stdlib.h>
+
+
 struct NumberRecord{
     int row;
     int column;
