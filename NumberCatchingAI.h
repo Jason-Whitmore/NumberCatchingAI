@@ -1,14 +1,10 @@
 
-
-
-
-#include "NeuralNetwork/NeuralNetwork.h"
 #include <iostream>
 #include <vector>
 #include <queue>
 #include <random>
 #include <stdlib.h>
-
+#include "NeuralNetwork/NeuralNetwork.h"
 
 struct NumberRecord{
     int row;
@@ -25,6 +21,8 @@ class NumberCatchingAI{
     std::vector<std::vector<char>> environment;
     std::deque<NumberRecord> numbers;
 
+    
+
     double score;
     int turnLimit;
     int turnNumber;
@@ -36,7 +34,16 @@ class NumberCatchingAI{
 
     void performAction(int action);
 
+    void trainAI(int numGames);
+
+    std::vector<double> encodeStateAction(int action);
 
     static int getRandomInt(int min, int max);
+    static double getAverage(std::vector<double> data);
+    static double getReward(std::deque<double> scores, double discountFactor);
+
+
+    private:
+    NeuralNetwork* Qfunction;
 
 };
