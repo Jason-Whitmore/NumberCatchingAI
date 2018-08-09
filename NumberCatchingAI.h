@@ -32,6 +32,8 @@ class NumberCatchingAI{
 
     void resetGame();
 
+    double runGame();
+
     void performAction(int action);
 
     void trainAI(int numGames);
@@ -41,6 +43,7 @@ class NumberCatchingAI{
     static int getRandomInt(int min, int max);
     static double getAverage(std::vector<double> data);
     static double getReward(std::deque<double> scores, double discountFactor);
+    static double getReward(std::vector<double> scores, double discountFactor);
 
 
     private:
