@@ -164,6 +164,7 @@ void NumberCatchingAI::trainAI(int numGames){
     std::vector<double> networkOutput;
     for(int i = 0; i < numGames; i++){
         std::cout << "Starting iteration " << i << std::endl;
+        
         currentDataIndex = 0;
 
         resetGame();
@@ -172,6 +173,7 @@ void NumberCatchingAI::trainAI(int numGames){
 
         //individual turns in game:
         for(int t = 0; t < gameLength; t++){
+            std::cout << "Number: " << numbers.size() << std::endl;
             //record current score
             totalReward.push_back(score);
             //pick best action with Q function Neural network
