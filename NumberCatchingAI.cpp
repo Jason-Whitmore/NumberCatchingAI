@@ -229,9 +229,6 @@ void NumberCatchingAI::trainAI(int numGames){
     Qfunction->setTrainingOutputs(outputs);
     Qfunction->gradientDescent(0, 10, 0.0001);
     
-    delete inputs;
-    delete outputs;
-
 }
 
 std::vector<double> NumberCatchingAI::encodeStateAction(int action){
