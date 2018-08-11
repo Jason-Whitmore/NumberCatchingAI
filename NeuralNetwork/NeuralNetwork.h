@@ -19,7 +19,7 @@ class NeuralNetwork {
 
 	
 
-	void trainNetwork(double targetLoss, int maxIterations, int numOfSteps, double numPassesScalar, double stepSize, double randMin, double randMax, bool displayStats);
+	
 
 
 
@@ -31,16 +31,16 @@ class NeuralNetwork {
 	double getLossDerivative(int variableIndex, int trainingIndex);
 
 
-	void optimizeRandomVariable(int numOfSteps, double stepSize, double randMin, double randMax);
+	
 
 	void randomizeVariables(double min, double max);
 
-	void setTrainingInputs(Data* inputs);
-	void setTrainingOutputs(Data* outputs);
+	void setTrainingInputs(std::vector<std::vector<double>> inputs);
+	void setTrainingOutputs(std::vector<std::vector<double>> outputs);
 	double calculateCurrentLoss();
 
-	Data* getTrainingInputs();
-	Data* getTrainingOutputs();
+	std::vector<std::vector<double>> getTrainingInputs();
+	std::vector<std::vector<double>> getTrainingOutputs();
 
 	void debugLayers();
 	void debugLayer(int layerNum);
@@ -51,16 +51,22 @@ class NeuralNetwork {
 	void saveNetwork(std::string filename);
 	void loadNetwork(std::string filename);
 
-	std::vector<int> dataIndexForStrongNodeSignal(int layerIndex, int nodeIndex, double threshold);
-
 	
+	int getNumWeights();
+	int getNumBiases();
+
+	double getBias(int index);
+	double getWeight(int index);
+
+	void setBias(int index, double value);
+	void setWeight(int index, double value);
 
 	private:
 	std::vector<NodeLayer>* layers;
 
-	Data* trainingInputs;
+	std::vector<std::vector<double>> trainingInputs;
 
-	Data* trainingOutputs;
+	std::vector<std::vector<double>> trainingOutputs;
 
 	std::vector<double> getAllBiases();
 	std::vector<double> getAllWeights();
@@ -68,11 +74,7 @@ class NeuralNetwork {
 	void loadBiases(std::string filePath);
 	void loadWeights(std::string filePath);
 
-	double getBias(int index);
-	double getWeight(int index);
 
-	void setBias(int index, double value);
-	void setWeight(int index, double value);
 
 	int numWeights;
 

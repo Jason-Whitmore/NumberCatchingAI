@@ -41,11 +41,10 @@ NumberCatchingAI::NumberCatchingAI(){
     turnLimit = 200;
 
     std::vector<int> config = std::vector<int>();
-    config.push_back(20);
-    config.push_back(16);
     config.push_back(10);
     config.push_back(5);
     Qfunction = new NeuralNetwork(17,1,config);
+    Qfunction->randomizeVariables(1,1);
 }
 
 void NumberCatchingAI::resetGame(){
@@ -125,6 +124,7 @@ void NumberCatchingAI::performAction(int action){
             }
 
             numbers.pop_front();
+            i--;
 
             //insert new number
             n.row = 0;
@@ -145,90 +145,168 @@ void NumberCatchingAI::performAction(int action){
 
 
 void NumberCatchingAI::trainAI(int numGames){
-    Qfunction->randomizeVariables(-1,1);
-
-    std::vector<double> avgData = std::vector<double>();
-
     
-    std::deque<double> totalReward = std::deque<double>();
-    int horizon = 20;
+    int horizon = 17;
     double discount = 0.9;
-    int gameLength = 1000;
+    int gameLength = 200;
 
     
     double bestQ;
     int bestAction;
 
-    Data* inputs = new Data(51,17);
-    Data* outputs = new Data(51,1);
-    int currentDataIndex = 0;
+    std::vector<std::vector<double>> inputs = std::vector<std::vector<double>>();
+    std::vector<std::vector<double>> outputs = std::vector<std::vector<double>>();
     std::vector<double> currentStateAction;
     std::vector<double> networkOutput;
 
-    std::vector<double> stateAction = std::vector<double>();
+    //input samples
+    std::vector<std::vector<double>> stateActions = std::vector<std::vector<double>>();
+    //output samples
     std::vector<double> rewards = std::vector<double>();
-        
-    currentDataIndex = 0;
+    
 
     resetGame();
 
     score = 0;
+    //separate games
+    for(int g = 1; g < numGames; g++){
+        //individual turns in game:
+            for(int t = 0; t < gameLength; t++){
+
+                
+                //record current score
+
+                //pick best action with Q function Neural network
+                bestQ = -9999999;
+                bestAction = -1;
+                for(int a = -1; a <= 1; a++){
+                    currentStateAction.clear();
+                    currentStateAction = std::vector<double>(encodeStateAction(a));
+                    networkOutput.reserve(1);
+                    
+                    networkOutput = Qfunction->runNetwork(currentStateAction);
+                    if(networkOutput[0] > bestQ){
+                        bestQ = networkOutput[0];
+                        bestAction = a;
+                    }
+                }
+                //record the best state/action
+                if(t < gameLength - horizon){
+                    stateActions.push_back(encodeStateAction(bestAction));
+                }
+                
+                
+                
+                //perform action
+                rewards.push_back(score);
+                performAction(bestAction);
+
+
+                //once we have enough data collected, place data into neural network for training
+                if(stateActions.size() >= horizon && t < gameLength - horizon){
+                    inputs.push_back(stateActions[0]);
+                    
+                    outputs.push_back(std::vector<double>{getReward(rewards, discount)});
+                    
+                    //remove from the collections
+                    stateActions.erase(stateActions.begin());
+                    rewards.erase(rewards.begin());
+                    
+                }
+
+            }
+
+            //clear data collection
+            
+
+            //now that data is collection, train the network for a few iterations
+            
+            Qfunction->setTrainingInputs(inputs);
+            Qfunction->setTrainingOutputs(outputs);
+            Qfunction->loadNetwork("networkData.txt");
+            Qfunction->gradientDescent(0, inputs.size(), 0.00001);
+            std::cout << "Avg score = " << runGame(30) << " Iteration " << g << std::endl;
+    }
     
-    //individual turns in game:
-    for(int t = 0; t < gameLength; t++){
+    //inputs.clear();
+    //outputs.clear();
+    
+}
 
-        
-        //record current score
+void NumberCatchingAI::trainAIExperimental(int iteration, int numGames, double learningRate){
 
-        //pick best action with Q function Neural network
-        bestQ = -9999999;
-        bestAction = -1;
-        for(int a = -1; a <= 1; a++){
-            currentStateAction.clear();
-            currentStateAction.reserve(17);
-            currentStateAction = std::vector<double>(encodeStateAction(a));
-            networkOutput.reserve(1);
-            
-            networkOutput = Qfunction->runNetwork(currentStateAction);
-            if(networkOutput[0] > bestQ){
-                bestQ = networkOutput[0];
-                bestAction = a;
+    double bestScore = -200;
+    double currentScore;
+    double verySmallNumber = 0.0001;
+
+    int numberOfSamples = 1;
+
+    double scoreBefore;
+    double scoreAfter;
+
+    double valueBefore;
+    double derivative;
+    
+    for(int i = 0; i < iteration; i++){
+        std::cout << "Starting new iteration. Randomizing variables" << std::endl;
+        Qfunction->randomizeVariables(-5,5);
+        for(int g = 1; g <= numGames; g++){
+
+
+            //"nudge" variables down the loss slope
+            for(int v = 0; v < Qfunction->getNumBiases() + Qfunction->getNumWeights(); v++){
+                //biases
+                if(v < Qfunction->getNumBiases()){
+                    scoreBefore = runGame(numberOfSamples);
+                    //nudge value
+                    valueBefore = Qfunction->getBias(v);
+                    Qfunction->setBias(v, valueBefore + verySmallNumber);
+                    //record new score
+                    scoreAfter = runGame(numberOfSamples);
+                    //calculate derivative
+                    derivative = (scoreAfter - scoreBefore) / verySmallNumber;
+                    //set the weight
+                    Qfunction->setBias(v, valueBefore + derivative*learningRate);
+
+                } else {
+                    //weights
+                    scoreBefore = runGame(numberOfSamples);
+                    //nudge value
+                    valueBefore = Qfunction->getWeight(v - Qfunction->getNumBiases());
+                    Qfunction->setWeight(v - Qfunction->getNumBiases(), valueBefore + verySmallNumber);
+                    //record new score
+                    scoreAfter = runGame(numberOfSamples);
+                    //calculate derivative
+                    derivative = (scoreAfter - scoreBefore) / verySmallNumber;
+                    //set the weight
+                    Qfunction->setWeight(v - Qfunction->getNumBiases(), valueBefore + derivative*learningRate);
+
+                }
             }
-        }
-        //record the best state/action
-        if(stateAction.empty()){
-            stateAction = encodeStateAction(bestAction);
-        }
-        //stateActions.push_back(encodeStateAction(bestAction));
-        //perform action
-        rewards.push_back(score);
-        performAction(bestAction);
 
 
-        //once we have enough data collected, place data into neural network for training
-        if(turnNumber % horizon == 0){
-            for(int c = 0; c < inputs->getNumCols(); c++){
-                inputs->setIndex(currentDataIndex, c, stateAction[c]);
+            currentScore = runGame(numberOfSamples * 10);
+            //std::cout << "Current score = " << currentScore << ". Iteration " << g << std::endl;
+            if(currentScore > bestScore){
+                bestScore = currentScore;
+                std::cout << "Best score = " << bestScore << ". Iteration " << g << std::endl;
             }
-            outputs->setIndex(currentDataIndex, 0, getReward(rewards, discount));
-            //remove from the collection
-            stateAction.clear();
-            rewards.clear();
-            currentDataIndex++;
-            
-        }
 
+            
+
+        }
     }
 
-    //clear data collection
-    totalReward.clear();
     
+}
 
-    //now that data is collection, train the network for a few iterations
-    Qfunction->setTrainingInputs(inputs);
-    Qfunction->setTrainingOutputs(outputs);
-    Qfunction->gradientDescent(0, 10, 0.0001);
-    
+double NumberCatchingAI::runGame(int numGames){
+    std::vector<double> avgData = std::vector<double>();
+
+    for(int i = 0; i < numGames; i++){
+        avgData.push_back(runGame());
+    }
+    return NumberCatchingAI::getAverage(avgData);
 }
 
 std::vector<double> NumberCatchingAI::encodeStateAction(int action){
@@ -306,6 +384,7 @@ int NumberCatchingAI::getRandomInt(int min, int max){
 
 double NumberCatchingAI::runGame(){
     resetGame();
+    Qfunction->loadNetwork("networkData.txt");
 
     int bestAction;
     double bestQ;
@@ -330,20 +409,28 @@ double NumberCatchingAI::runGame(){
 
 int main(){
     NumberCatchingAI n = NumberCatchingAI();
+    
 
     std::vector<double> avgData = std::vector<double>();
+    std::vector<double> encoding;
 
-
-    //compiles with: g++ -std=c++11 *.h *.cpp NeuralNetwork/*.h NeuralNetwork/*.cpp
-    for(int i = 0; i < 1000; i++){
-        n.trainAI(1);
-
-        avgData.push_back(n.runGame());
-
-        if(i % 10 == 0){
-            std::cout << "Avg Score = " << NumberCatchingAI::getAverage(avgData) << std::endl;
-            avgData.clear();
+    for(int i = 0; i < 100; i++){
+        while(n.turnNumber < n.turnLimit){
+            n.performAction(NumberCatchingAI::getRandomInt(-1, 2));
         }
+        avgData.push_back(n.score);
+        n.resetGame();
     }
+
+
+    std::cout << "Random score: " << NumberCatchingAI::getAverage(avgData) << std::endl;
+
+    //n.trainAIExperimental(100, 100, 0.001);
+
+    
+    
+
+    //compiles with: g++ -g -std=c++11 *.h *.cpp NeuralNetwork/*.h NeuralNetwork/*.cpp
+    n.trainAI(10000);
 
 }

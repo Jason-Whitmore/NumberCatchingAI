@@ -33,6 +33,7 @@ class NumberCatchingAI{
     void resetGame();
 
     double runGame();
+    double runGame(int numGames);
 
     void performAction(int action);
 
@@ -45,8 +46,10 @@ class NumberCatchingAI{
     static double getReward(std::deque<double> scores, double discountFactor);
     static double getReward(std::vector<double> scores, double discountFactor);
 
-
-    private:
     NeuralNetwork* Qfunction;
+
+    void trainAIExperimental(int iteration, int numGames, double learningRate);
+    private:
+    
 
 };

@@ -136,64 +136,15 @@ std::vector<double> NeuralNetwork::runNetwork(double * inputs) {
 
 
 
-
-
-void NeuralNetwork::trainNetwork(double targetLoss, int maxIterations, int numOfSteps, double numPassesScalar, double stepSize, double randMin, double randMax, bool displayStats) {
-	std::vector<NodeLayer>* startLayers = layers;
-	std::vector<NodeLayer>* bestLayers = layers;
-	double currentLoss = calculateCurrentLoss();
-	double bestLoss = currentLoss;
-
-	int improvements = 0;
-	double progress = 0;
-
-	for(int i = 0; i < maxIterations && bestLoss > targetLoss; i++) {
-		randomizeVariables(randMin, randMax);
-		
-
-		for (int pass = 0; pass < ((numBiases - numInputs) + numWeights) * numPassesScalar; pass++) {
-			optimizeRandomVariable(numOfSteps, (1 - progress)* stepSize, randMin, randMax);
-			progress = ((double)pass) / (((numBiases - numInputs) + numWeights) * numPassesScalar);
-
-			std::cout << "Loss during pass " << pass << ": " << calculateCurrentLoss() << std::endl;
-		}
-
-		currentLoss = calculateCurrentLoss();
-
-		if (bestLoss > currentLoss) {
-			
-			//bestLayers = new std::vector<NodeLayer>(*layers);
-			bestLoss = currentLoss;
-			//layers = startLayers;
-			saveNetwork("networkData.txt");
-			improvements++;
-			//debugLayers();
-
-		}
-
-		if (displayStats && i % 10 == 0) {
-			system("CLS");
-			std::cout << "Iteration: " << i << "/" << maxIterations << std::endl;
-			std::cout << "Best Loss: " << bestLoss << std::endl;
-			std::cout << "Number of Improvements to loss: " << improvements << std::endl;
-			std::cout << "Current Loss: " << currentLoss << std::endl;
-			
-		}
-		
-
-	}
-
-
-
-
-	//loadBiases("biases.txt");
-	//loadWeights("weights.txt");
-	loadNetwork("networkData.txt");
-
-	//debugLayers();
-	return;
-	//debugLayers();
+int NeuralNetwork::getNumWeights(){
+	return numWeights;
 }
+
+
+int NeuralNetwork::getNumBiases(){
+	return numBiases;
+}
+
 
 void NeuralNetwork::gradientDescent(double targetLoss, int maxIterations, double learningRate) {
 
@@ -213,10 +164,10 @@ void NeuralNetwork::gradientDescent(double targetLoss, int maxIterations, double
 
 	double derivative;
 	for (int iterations = 0; iterations < maxIterations && bestLoss > targetLoss; iterations++) {
-		order = NNHelper::randomOrder(getTrainingInputs()->getNumRows());
+		order = NNHelper::randomOrder(trainingInputs.size());
 
 		//loop through each dataset during descent
-		for (int data = 0; data < getTrainingInputs()->getNumRows(); data++) {
+		for (int data = 0; data < trainingInputs.size(); data++) {
 			//calculate gradient
 			//gradient = getLossGradient(order[data]);
 
@@ -382,83 +333,7 @@ double NeuralNetwork::getLossDerivative(int variableIndex, int trainingIndex) {
 
 
 
-void NeuralNetwork::optimizeRandomVariable(int numOfSteps, double stepSize, double randMin, double randMax) {
-	//need to find proportion of biases to totalVariables
-	double biasesToTotalVariables = ((double)numBiases - numInputs) / (numBiases - numInputs + numWeights);
 
-	if (NNHelper::randomDouble(0,1) > biasesToTotalVariables) {
-		//pick a weight to optimize
-		int weightIndex = NNHelper::randomInt(0, numWeights);
-
-		int currentWeightIndex = 0;
-		int currentLayerIndex = 1;
-
-		//find layer that contains the right index
-		while (currentWeightIndex + layers->at(currentLayerIndex).getNumWeights() <= weightIndex) {
-			currentWeightIndex += layers->at(currentLayerIndex).getNumWeights();
-			currentLayerIndex++;
-		}
-
-		//layer index found
-		//calculate the index for the weight within the current layer
-		weightIndex = weightIndex - currentWeightIndex;
-
-		double prevLoss;
-		double currentDelta = stepSize;
-		for (int i = 0; i < numOfSteps; i++) {
-			prevLoss = calculateCurrentLoss();
-			//make changes
-			layers->at(currentLayerIndex).setWeight(weightIndex, layers->at(currentLayerIndex).getWeight(weightIndex) + currentDelta);
-
-			//backtrack if loss got worse
-			if (calculateCurrentLoss() > prevLoss) {
-				currentDelta *= -0.5;
-			}
-
-
-		}
-		
-
-
-
-	} else {
-		//pick a bias to optimize
-		//pick a weight to optimize
-		int biasIndex = NNHelper::randomInt(numInputs, numBiases);
-
-		
-
-		int currentBiasIndex = 0;
-		int currentLayerIndex = 0;
-
-		//find layer that contains the right index
-		while (currentBiasIndex + layers->at(currentLayerIndex).getNumBiases() <= biasIndex) {
-			currentBiasIndex += layers->at(currentLayerIndex).getNumBiases();
-
-		}
-
-		//layer index found
-		//calculate the index for the weight within the current layer
-		biasIndex = biasIndex - currentBiasIndex;
-
-		double prevLoss;
-		double currentDelta = stepSize;
-		for (int i = 0; i < numOfSteps; i++) {
-			prevLoss = calculateCurrentLoss();
-			//make changes
-			layers->at(currentLayerIndex).setBias(biasIndex, layers->at(currentLayerIndex).getBias(biasIndex) + currentDelta);
-
-			//backtrack if loss got worse
-			if (calculateCurrentLoss() > prevLoss) {
-				currentDelta *= -0.5;
-			}
-
-		}
-
-	}
-
-
-}
 
 void NeuralNetwork::randomizeVariables(double min, double max) {
 	
@@ -478,19 +353,19 @@ void NeuralNetwork::randomizeVariables(double min, double max) {
 
 }
 
-void NeuralNetwork::setTrainingInputs(Data* inputs) {
+void NeuralNetwork::setTrainingInputs(std::vector<std::vector<double>> inputs) {
 	trainingInputs = inputs;
 }
 
-void NeuralNetwork::setTrainingOutputs(Data* outputs) {
+void NeuralNetwork::setTrainingOutputs(std::vector<std::vector<double>> outputs) {
 	trainingOutputs = outputs;
 }
 
-Data * NeuralNetwork::getTrainingInputs() {
+std::vector<std::vector<double>> NeuralNetwork::getTrainingInputs() {
 	return trainingInputs;
 }
 
-Data * NeuralNetwork::getTrainingOutputs() {
+std::vector<std::vector<double>> NeuralNetwork::getTrainingOutputs() {
 	return trainingOutputs;
 }
 
@@ -634,21 +509,7 @@ void NeuralNetwork::loadNetwork(std::string filename) {
 }
 
 
-std::vector<int> NeuralNetwork::dataIndexForStrongNodeSignal(int layerIndex, int nodeIndex, double threshold) {
-	std::vector<int> r = std::vector<int>();
 
-	for (int i = 0; i < getTrainingInputs()->getNumRows(); i++) {
-		runNetwork(getTrainingInputs()->getRow(i));
-
-		if (layers->at(layerIndex).getOutputVector()[nodeIndex] >= threshold) {
-			r.push_back(i);
-		}
-	}
-
-
-
-	return r;
-}
 
 
 std::vector<double> NeuralNetwork::getAllBiases() {
@@ -811,14 +672,13 @@ double NeuralNetwork::calculateCurrentLoss(int dataIndex) {
 	double loss = 0;
 	std::vector<double> networkOutputs = std::vector<double>();
 
-	double* dataRow = trainingInputs->getRow(dataIndex);
+	std::vector<double> dataRow = trainingInputs[dataIndex];
 	networkOutputs = runNetwork(dataRow);
 	
-	delete dataRow;
 	//caclulate loss and add to sum
-	for (int c = 0; c < trainingOutputs->getNumCols(); c++) {
+	for (int c = 0; c < trainingOutputs[0].size(); c++) {
 
-		loss += NNHelper::calculateLoss(trainingOutputs->getIndex(dataIndex, c), networkOutputs[c]) * (1.0 / trainingOutputs->getNumCols());
+		loss += NNHelper::calculateLoss(trainingOutputs[dataIndex][c], networkOutputs[c]) * (1.0 / trainingOutputs[0].size());
 	}
 
 	return loss;
@@ -834,19 +694,18 @@ double NeuralNetwork::calculateCurrentLoss() {
 	std::vector<double> networkOutputs = std::vector<double>();
 
 	//bug somewhere here
-	for (int r = 0; r < trainingOutputs->getNumRows(); r++) {
+	for (int r = 0; r < trainingOutputs.size(); r++) {
 		//get the network's output
-		double* dataRow = trainingInputs->getRow(r);
+		std::vector<double> dataRow = trainingInputs[r];
 		networkOutputs = runNetwork(dataRow);
 		//networkOutputs = runNetwork(NNHelper::arrayToVector(dataRow, trainingInputs->getNumCols()));
-		delete dataRow;
 		//caclulate loss and add to sum
-		for (int c = 0; c < trainingOutputs->getNumCols(); c++) {
+		for (int c = 0; c < trainingOutputs[0].size(); c++) {
 
-			loss += NNHelper::calculateLoss(trainingOutputs->getIndex(r,c), networkOutputs[c]) * (1.0 / trainingOutputs->getNumCols());
+			loss += NNHelper::calculateLoss(trainingOutputs[r][c], networkOutputs[c]) * (1.0 / trainingInputs[0].size());
 			dataPointCount++;
 		}
 	}
-	return loss / trainingOutputs->getNumRows();
+	return loss / trainingOutputs.size();
 }
 
