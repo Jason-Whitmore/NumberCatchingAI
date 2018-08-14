@@ -46,6 +46,7 @@ NumberCatchingAI::NumberCatchingAI(){
     Qfunction = new NeuralNetwork(16,3,config);
     Qfunction->randomizeVariables(-10,10);
     Qfunction->saveNetwork("networkData.txt");
+    discountFactor = 0.9;
 }
 
 void NumberCatchingAI::resetGame(){
@@ -480,9 +481,30 @@ double NumberCatchingAI::clip(double value){
     return value;
 }
 
+double NumberCatchingAI::getValue(int timeStep, std::vector<double> scores){
+    double sum = 0;
+    for(int t = timeStep; t < scores.size(); t++){
+        sum += powf64(discountFactor, t - timeStep) * scores[t];
+    }
+    return sum;
+}
+
+double NumberCatchingAI::getAdvantage(int timeStep, std::vector<double> scores){
+    double sum = -1 * getValue(timeStep, scores);
+
+    for(int t = timeStep; t < scores.size(); t++){
+        sum += powf64(discountFactor, t - timeStep) * scores[t];
+    }
+
+    sum += powf64(discountFactor, scores.size() - timeStep) * getValue(scores.size(), scores);
+    return sum;
+}
+
 void NumberCatchingAI::trainAIPPO(int iterations, int timeSteps, int epochs, double learningRate){
     
     std::vector<double> scores = std::vector<double>();
+    std::vector<double> advantages = std::vector<double>();
+    const double epsilon = 0.2;
 
     for(int i = 0; i < iterations; i++){
         //run for timesteps, collect data long the way
@@ -491,6 +513,10 @@ void NumberCatchingAI::trainAIPPO(int iterations, int timeSteps, int epochs, dou
             scores.push_back(score);
             //perform action with current policy
             performAction(getBestAction());
+        }
+        //calculate advantages for each timestep
+        for(int t = 0; t < timeSteps; t++){
+            
         }
 
     }

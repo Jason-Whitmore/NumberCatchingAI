@@ -26,6 +26,8 @@ class NumberCatchingAI{
     double score;
     int turnLimit;
     int turnNumber;
+    double discountFactor;
+    
 
     int playerLocation;
 
@@ -55,6 +57,9 @@ class NumberCatchingAI{
 
     static double min(std::vector<double> vec);
     static double clip(double value);
+
+    double getAdvantage(int timeStep, std::vector<double> scores);
+    double getValue(int timeStep, std::vector<double> scores);
 
     void trainAIPPO(int iterations, int timeSteps, int epochs, double learningRate);
 
