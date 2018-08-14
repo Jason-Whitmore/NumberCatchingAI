@@ -40,15 +40,27 @@ class NumberCatchingAI{
     void trainAI(int numGames);
 
     std::vector<double> encodeStateAction(int action);
+    std::vector<double> encodeState();
+    
+    int highestIndex(std::vector<double> outputVector);
+
+    int getBestAction();
 
     static int getRandomInt(int min, int max);
     static double getAverage(std::vector<double> data);
     static double getReward(std::deque<double> scores, double discountFactor);
     static double getReward(std::vector<double> scores, double discountFactor);
 
+    double getReward(int timeStep);
+
+    static double min(std::vector<double> vec);
+    static double clip(double value);
+
+    void trainAIPPO(int iterations, int timeSteps, int epochs, double learningRate);
+
     NeuralNetwork* Qfunction;
 
-    void trainAIExperimental(int iteration, int numGames, double learningRate);
+    void trainAIExperimental(int iterations, int numGames, double learningRate);
     private:
     
 

@@ -41,10 +41,11 @@ NumberCatchingAI::NumberCatchingAI(){
     turnLimit = 200;
 
     std::vector<int> config = std::vector<int>();
-    config.push_back(10);
-    config.push_back(5);
-    Qfunction = new NeuralNetwork(17,1,config);
-    Qfunction->randomizeVariables(1,1);
+    config.push_back(64);
+    config.push_back(64);
+    Qfunction = new NeuralNetwork(16,3,config);
+    Qfunction->randomizeVariables(-10,10);
+    Qfunction->saveNetwork("networkData.txt");
 }
 
 void NumberCatchingAI::resetGame(){
@@ -233,13 +234,13 @@ void NumberCatchingAI::trainAI(int numGames){
     
 }
 
-void NumberCatchingAI::trainAIExperimental(int iteration, int numGames, double learningRate){
+void NumberCatchingAI::trainAIExperimental(int iterations, int numGames, double learningRate){
 
     double bestScore = -200;
     double currentScore;
-    double verySmallNumber = 0.0001;
+    double verySmallNumber = 0.1;
 
-    int numberOfSamples = 1;
+    int numberOfSamples = 10;
 
     double scoreBefore;
     double scoreAfter;
@@ -247,7 +248,7 @@ void NumberCatchingAI::trainAIExperimental(int iteration, int numGames, double l
     double valueBefore;
     double derivative;
     
-    for(int i = 0; i < iteration; i++){
+    for(int i = 0; i < iterations; i++){
         std::cout << "Starting new iteration. Randomizing variables" << std::endl;
         Qfunction->randomizeVariables(-5,5);
         for(int g = 1; g <= numGames; g++){
@@ -285,8 +286,8 @@ void NumberCatchingAI::trainAIExperimental(int iteration, int numGames, double l
             }
 
 
-            currentScore = runGame(numberOfSamples * 10);
-            //std::cout << "Current score = " << currentScore << ". Iteration " << g << std::endl;
+            currentScore = runGame(numberOfSamples);
+            std::cout << "Current score = " << currentScore << ". Iteration " << g << std::endl;
             if(currentScore > bestScore){
                 bestScore = currentScore;
                 std::cout << "Best score = " << bestScore << ". Iteration " << g << std::endl;
@@ -296,6 +297,7 @@ void NumberCatchingAI::trainAIExperimental(int iteration, int numGames, double l
 
         }
     }
+    
 
     
 }
@@ -324,6 +326,49 @@ std::vector<double> NumberCatchingAI::encodeStateAction(int action){
     ret.push_back((double)action);
 
     return ret;
+}
+
+
+std::vector<double> NumberCatchingAI::encodeState(){
+    std::vector<double> ret = std::vector<double>();
+
+    //possible issue here of too many entries in the numbers deque
+    for(int i = 0; i < numbers.size(); i++){
+        ret.push_back((double)(numbers[i].column));
+        ret.push_back((double)(numbers[i].row));
+        ret.push_back((double)(numbers[i].value));
+    }
+
+    ret.push_back((double)playerLocation);
+
+    return ret;
+}
+
+int NumberCatchingAI::highestIndex(std::vector<double> outputVector){
+    int highestIndex = 0;
+    double highestValue = outputVector[0];
+
+    for(int i = 1; i < outputVector.size(); i++){
+        if(outputVector[i] > highestValue){
+            highestIndex = i;
+            highestValue = outputVector[i];
+        }
+    }
+    return highestIndex;
+}
+
+
+int NumberCatchingAI::getBestAction(){
+    //get the game state
+    std::vector<double> gameState = encodeState();
+
+    //feed game state into neural network. Get output vector
+
+    std::vector<double> outputs = Qfunction->runNetwork(gameState);
+
+    //calculate the best action based on the current policy
+
+    return highestIndex(outputs) - 1;
 }
 
 double NumberCatchingAI::getReward(std::deque<double> scores, double discountFactor){
@@ -390,47 +435,79 @@ double NumberCatchingAI::runGame(){
     double bestQ;
     for(int i = 0; i < turnLimit; i++){
         //choose action
-        bestAction = -1;
-        bestQ = -100000000000000;
-        for(int a = -1; a <= 1; a++){
-            if(Qfunction->runNetwork(encodeStateAction(a)).at(0) > bestQ){
-                bestQ = Qfunction->runNetwork(encodeStateAction(a)).at(0);
-                bestAction = a;
-            }
-        }
-
+        bestAction = getBestAction();
         //perform action
         performAction(bestAction);
     }
 
     return score;
 }
+double NumberCatchingAI::getReward(int timeStep){
+    //variables for calculating reward
+    double scoreBefore = 0;
+    double scoreAfter = 0;
 
+    for(int t = 0; t <= timeStep; t++){
+        scoreBefore = score;
+        performAction(getBestAction());
+        scoreAfter = score;
+
+    }
+
+    return scoreAfter - scoreBefore;
+}
+
+double NumberCatchingAI::min(std::vector<double> vec){
+    if(vec.size() == 0){
+        std::cout << "Error: min() given vector is empty." << std::endl;
+    }
+    double min = vec[0];
+
+    for(int i = 0; i < vec.size(); i++){
+        if(vec[i] < min){
+            min = vec[i];
+        }
+    }
+    return min;
+}
+
+double NumberCatchingAI::clip(double value){
+    if(value < -1){
+        return -1;
+    } else if (value > 1){
+        return 1;
+    }
+    return value;
+}
+
+void NumberCatchingAI::trainAIPPO(int iterations, int timeSteps, int epochs, double learningRate){
+    
+    std::vector<double> scores = std::vector<double>();
+
+    for(int i = 0; i < iterations; i++){
+        //run for timesteps, collect data long the way
+        for(int t = 0; t < timeSteps; t++){
+            //get score before action
+            scores.push_back(score);
+            //perform action with current policy
+            performAction(getBestAction());
+        }
+
+    }
+}
 
 int main(){
     NumberCatchingAI n = NumberCatchingAI();
     
 
-    std::vector<double> avgData = std::vector<double>();
-    std::vector<double> encoding;
+    std::cout << "Random score: " << n.runGame(100) << std::endl;
 
-    for(int i = 0; i < 100; i++){
-        while(n.turnNumber < n.turnLimit){
-            n.performAction(NumberCatchingAI::getRandomInt(-1, 2));
-        }
-        avgData.push_back(n.score);
-        n.resetGame();
-    }
-
-
-    std::cout << "Random score: " << NumberCatchingAI::getAverage(avgData) << std::endl;
-
-    //n.trainAIExperimental(100, 100, 0.001);
+    n.trainAIExperimental(10000, 100, 1);
 
     
     
 
     //compiles with: g++ -g -std=c++11 *.h *.cpp NeuralNetwork/*.h NeuralNetwork/*.cpp
-    n.trainAI(10000);
+    //n.trainAI(10000);
 
 }
