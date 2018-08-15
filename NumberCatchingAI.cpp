@@ -489,14 +489,50 @@ double NumberCatchingAI::getValue(int timeStep, std::vector<double> scores){
     return sum;
 }
 
+std::vector<double> NumberCatchingAI::getDeltas(std::vector<double> scores){
+    std::vector<double> ret = std::vector<double>();
+
+    for(int i = 1; i < scores.size(); i++){
+        ret.push_back(scores[i] - scores[i-1]);
+    }
+
+    return ret;
+}
+
+double NumberCatchingAI::getValue(int timeStep){
+    const int horizonPastTimeStep = (int)(std::log10(0.01) / std::log10(discountFactor));
+    std::vector<double> scores = std::vector<double>();
+    double sum = 0;
+    for(int t = 0; t < timeStep + horizonPastTimeStep; t++){
+        if(t > timeStep){
+            scores.push_back(score);
+        }
+
+        //perform action
+        performAction(getBestAction());
+    }
+
+    //convert scores to score deltas
+    std::vector<double> deltas = NumberCatchingAI::getDeltas(scores);
+
+    //calculate value of the state (deltas from that state to infinity, or in our practical case, where the discount rate limits the reward to near zero)
+    for(int t = timeStep; t < horizonPastTimeStep; t++){
+        sum += deltas[t] * std::pow(discountFactor, t - timeStep);
+    }
+    //return the sum
+    return sum;
+}
+
 double NumberCatchingAI::getAdvantage(int timeStep, std::vector<double> scores){
-    double sum = -1 * getValue(timeStep, scores);
+
+    scores = NumberCatchingAI::getDeltas(scores);
+    double sum = -1 * getValue(timeStep);
 
     for(int t = timeStep; t < scores.size(); t++){
         sum += powf64(discountFactor, t - timeStep) * scores[t];
     }
 
-    sum += powf64(discountFactor, scores.size() - timeStep) * getValue(scores.size(), scores);
+    sum += powf64(discountFactor, scores.size() - timeStep) * getValue(scores.size());
     return sum;
 }
 

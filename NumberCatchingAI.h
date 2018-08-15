@@ -50,16 +50,21 @@ class NumberCatchingAI{
 
     static int getRandomInt(int min, int max);
     static double getAverage(std::vector<double> data);
+    
+    static std::vector<double> getDeltas(std::vector<double> scores);
+
     static double getReward(std::deque<double> scores, double discountFactor);
     static double getReward(std::vector<double> scores, double discountFactor);
 
     double getReward(int timeStep);
+    
 
     static double min(std::vector<double> vec);
     static double clip(double value);
 
     double getAdvantage(int timeStep, std::vector<double> scores);
     double getValue(int timeStep, std::vector<double> scores);
+    double getValue(int timeStep);
 
     void trainAIPPO(int iterations, int timeSteps, int epochs, double learningRate);
 
