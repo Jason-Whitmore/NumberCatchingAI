@@ -516,7 +516,7 @@ void NumberCatchingAI::trainAIPPO(int iterations, int timeSteps, int epochs, dou
         }
         //calculate advantages for each timestep
         for(int t = 0; t < timeSteps; t++){
-            
+            //
         }
 
     }
