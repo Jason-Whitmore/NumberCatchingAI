@@ -57,18 +57,25 @@ class NumberCatchingAI{
     static double getReward(std::vector<double> scores, double discountFactor);
 
     double getReward(int timeStep);
+    double getReward(int timeStep, int sampleCount);
+
+    void SGDIteration(int timeStep, double advantage, double learningRate);
     
 
     static double min(std::vector<double> vec);
     static double clip(double value);
 
-    double getAdvantage(int timeStep, std::vector<double> scores);
+    double getAdvantage(int timeStep, std::vector<double> scores, std::vector<std::vector<double>> states);
+
+    void setState(std::vector<double> state);
+
     double getValue(int timeStep, std::vector<double> scores);
     double getValue(int timeStep);
+    double getValue(std::vector<double> state);
 
     void trainAIPPO(int iterations, int timeSteps, int epochs, double learningRate);
 
-    NeuralNetwork* Qfunction;
+    NeuralNetwork* policyFunction;
 
     void trainAIExperimental(int iterations, int numGames, double learningRate);
     private:

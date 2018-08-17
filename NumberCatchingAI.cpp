@@ -43,9 +43,10 @@ NumberCatchingAI::NumberCatchingAI(){
     std::vector<int> config = std::vector<int>();
     config.push_back(64);
     config.push_back(64);
-    Qfunction = new NeuralNetwork(16,3,config);
-    Qfunction->randomizeVariables(-10,10);
-    Qfunction->saveNetwork("networkData.txt");
+    config.push_back(64);
+    policyFunction = new NeuralNetwork(16,3,config);
+    policyFunction->randomizeVariables(-.1,.1);
+    policyFunction->saveNetwork("networkData.txt");
     discountFactor = 0.9;
 }
 
@@ -186,7 +187,7 @@ void NumberCatchingAI::trainAI(int numGames){
                     currentStateAction = std::vector<double>(encodeStateAction(a));
                     networkOutput.reserve(1);
                     
-                    networkOutput = Qfunction->runNetwork(currentStateAction);
+                    networkOutput = policyFunction->runNetwork(currentStateAction);
                     if(networkOutput[0] > bestQ){
                         bestQ = networkOutput[0];
                         bestAction = a;
@@ -223,10 +224,10 @@ void NumberCatchingAI::trainAI(int numGames){
 
             //now that data is collection, train the network for a few iterations
             
-            Qfunction->setTrainingInputs(inputs);
-            Qfunction->setTrainingOutputs(outputs);
-            Qfunction->loadNetwork("networkData.txt");
-            Qfunction->gradientDescent(0, inputs.size(), 0.00001);
+            policyFunction->setTrainingInputs(inputs);
+            policyFunction->setTrainingOutputs(outputs);
+            policyFunction->loadNetwork("networkData.txt");
+            policyFunction->gradientDescent(0, inputs.size(), 0.00001);
             std::cout << "Avg score = " << runGame(30) << " Iteration " << g << std::endl;
     }
     
@@ -251,37 +252,37 @@ void NumberCatchingAI::trainAIExperimental(int iterations, int numGames, double 
     
     for(int i = 0; i < iterations; i++){
         std::cout << "Starting new iteration. Randomizing variables" << std::endl;
-        Qfunction->randomizeVariables(-5,5);
+        policyFunction->randomizeVariables(-5,5);
         for(int g = 1; g <= numGames; g++){
 
 
             //"nudge" variables down the loss slope
-            for(int v = 0; v < Qfunction->getNumBiases() + Qfunction->getNumWeights(); v++){
+            for(int v = 0; v < policyFunction->getNumBiases() + policyFunction->getNumWeights(); v++){
                 //biases
-                if(v < Qfunction->getNumBiases()){
+                if(v < policyFunction->getNumBiases()){
                     scoreBefore = runGame(numberOfSamples);
                     //nudge value
-                    valueBefore = Qfunction->getBias(v);
-                    Qfunction->setBias(v, valueBefore + verySmallNumber);
+                    valueBefore = policyFunction->getBias(v);
+                    policyFunction->setBias(v, valueBefore + verySmallNumber);
                     //record new score
                     scoreAfter = runGame(numberOfSamples);
                     //calculate derivative
                     derivative = (scoreAfter - scoreBefore) / verySmallNumber;
                     //set the weight
-                    Qfunction->setBias(v, valueBefore + derivative*learningRate);
+                    policyFunction->setBias(v, valueBefore + derivative*learningRate);
 
                 } else {
                     //weights
                     scoreBefore = runGame(numberOfSamples);
                     //nudge value
-                    valueBefore = Qfunction->getWeight(v - Qfunction->getNumBiases());
-                    Qfunction->setWeight(v - Qfunction->getNumBiases(), valueBefore + verySmallNumber);
+                    valueBefore = policyFunction->getWeight(v - policyFunction->getNumBiases());
+                    policyFunction->setWeight(v - policyFunction->getNumBiases(), valueBefore + verySmallNumber);
                     //record new score
                     scoreAfter = runGame(numberOfSamples);
                     //calculate derivative
                     derivative = (scoreAfter - scoreBefore) / verySmallNumber;
                     //set the weight
-                    Qfunction->setWeight(v - Qfunction->getNumBiases(), valueBefore + derivative*learningRate);
+                    policyFunction->setWeight(v - policyFunction->getNumBiases(), valueBefore + derivative*learningRate);
 
                 }
             }
@@ -365,7 +366,7 @@ int NumberCatchingAI::getBestAction(){
 
     //feed game state into neural network. Get output vector
 
-    std::vector<double> outputs = Qfunction->runNetwork(gameState);
+    std::vector<double> outputs = policyFunction->runNetwork(gameState);
 
     //calculate the best action based on the current policy
 
@@ -430,7 +431,7 @@ int NumberCatchingAI::getRandomInt(int min, int max){
 
 double NumberCatchingAI::runGame(){
     resetGame();
-    Qfunction->loadNetwork("networkData.txt");
+    policyFunction->loadNetwork("networkData.txt");
 
     int bestAction;
     double bestQ;
@@ -444,6 +445,7 @@ double NumberCatchingAI::runGame(){
     return score;
 }
 double NumberCatchingAI::getReward(int timeStep){
+    resetGame();
     //variables for calculating reward
     double scoreBefore = 0;
     double scoreAfter = 0;
@@ -451,11 +453,21 @@ double NumberCatchingAI::getReward(int timeStep){
     for(int t = 0; t <= timeStep; t++){
         scoreBefore = score;
         performAction(getBestAction());
-        scoreAfter = score;
+    }
+    scoreAfter = score;
+    resetGame();
+    return scoreAfter - scoreBefore;
+}
 
+double NumberCatchingAI::getReward(int timeStep, int sampleCount){
+    resetGame();
+    std::vector<double> avgData = std::vector<double>();
+
+    for(int i = 0; i < sampleCount; i++){
+        avgData.push_back(getReward(timeStep));
     }
 
-    return scoreAfter - scoreBefore;
+    return NumberCatchingAI::getAverage(avgData);
 }
 
 double NumberCatchingAI::min(std::vector<double> vec){
@@ -482,6 +494,7 @@ double NumberCatchingAI::clip(double value){
 }
 
 double NumberCatchingAI::getValue(int timeStep, std::vector<double> scores){
+    resetGame();
     double sum = 0;
     for(int t = timeStep; t < scores.size(); t++){
         sum += powf64(discountFactor, t - timeStep) * scores[t];
@@ -500,6 +513,7 @@ std::vector<double> NumberCatchingAI::getDeltas(std::vector<double> scores){
 }
 
 double NumberCatchingAI::getValue(int timeStep){
+    resetGame();
     const int horizonPastTimeStep = (int)(std::log10(0.01) / std::log10(discountFactor));
     std::vector<double> scores = std::vector<double>();
     double sum = 0;
@@ -516,31 +530,157 @@ double NumberCatchingAI::getValue(int timeStep){
     std::vector<double> deltas = NumberCatchingAI::getDeltas(scores);
 
     //calculate value of the state (deltas from that state to infinity, or in our practical case, where the discount rate limits the reward to near zero)
-    for(int t = timeStep; t < horizonPastTimeStep; t++){
+    for(int t = timeStep; t < deltas.size(); t++){
         sum += deltas[t] * std::pow(discountFactor, t - timeStep);
     }
     //return the sum
     return sum;
 }
 
-double NumberCatchingAI::getAdvantage(int timeStep, std::vector<double> scores){
+double NumberCatchingAI::getValue(std::vector<double> state){
+    NumberCatchingAI n = NumberCatchingAI();
+    n.setState(state);
+    const int localHorizon = (int)(std::log10(0.01) / std::log10(discountFactor));
+    const int iterations = 1000;
+    double bestSum = -1000000000;
+    double currentSum = bestSum;
+    double currentDiscount = 1;
+    std::vector<double> scores = std::vector<double>();
 
-    scores = NumberCatchingAI::getDeltas(scores);
-    double sum = -1 * getValue(timeStep);
+    for(int i = 0; i < iterations; i++){
+        n.resetGame();
+        currentSum = 0;
+        currentDiscount = 1;
+        n.setState(state);
+        scores.clear();
+        for(int t = 0; t < localHorizon; t++){
+            n.performAction(NNHelper::randomInt(-1, 2));
+            scores.push_back(n.score);
+        }
+        scores = getDeltas(scores);
 
-    for(int t = timeStep; t < scores.size(); t++){
-        sum += powf64(discountFactor, t - timeStep) * scores[t];
+        for(int t = 0; t < scores.size(); t++){
+            currentDiscount *= discountFactor;
+            currentSum += scores[t] * currentDiscount;
+        }
+
+        if(currentSum > bestSum){
+            bestSum = currentSum;
+        }
     }
 
-    sum += powf64(discountFactor, scores.size() - timeStep) * getValue(scores.size());
+    return bestSum;
+}
+
+double NumberCatchingAI::getAdvantage(int timeStep, std::vector<double> scores, std::vector<std::vector<double>> states){
+    resetGame();
+
+    scores = NumberCatchingAI::getDeltas(scores);
+    double sum = -1 * getValue(states[timeStep]);
+
+    for(int t = timeStep; t < scores.size(); t++){
+        sum += std::pow(discountFactor, t - timeStep) * scores[t];
+    }
+
+    sum += std::pow(discountFactor, scores.size() - timeStep) * getValue(states[states.size() - 1]);
     return sum;
+}
+
+void NumberCatchingAI::SGDIteration(int timeStep, double advantage, double learningRate){
+
+    double direction;
+    if(advantage > 0){
+        direction = 1;
+    } else {
+        direction = -1;
+    }
+    const double smallDouble = 0.001;
+    double rewardBefore = getReward(timeStep, 1000);
+    std::vector<double> gradient = std::vector<double>();
+
+    double oldSurrogate;
+    double newSurrogate;
+
+    const int numSamples = 100;
+
+    int biasIndex;
+
+    //calculate how much a "nudge" would change outcome of the surrogate function for each variable in the neural network
+    for(int v = 0; v < policyFunction->getNumBiases() + policyFunction->getNumWeights(); v++){
+
+        //adjusting weights
+        if(v < policyFunction->getNumWeights()){
+            oldSurrogate = advantage * getReward(timeStep, numSamples);
+            policyFunction->setWeight(v, policyFunction->getWeight(v) + smallDouble);
+            newSurrogate = advantage * getReward(timeStep, numSamples);
+
+            //record partial derivative for this variable
+            gradient.push_back((newSurrogate - oldSurrogate) / smallDouble);
+            //std::cout << "Derivative = " << (newSurrogate - oldSurrogate) / smallDouble << std::endl;
+
+            //reset the value
+            policyFunction->setWeight(v, policyFunction->getWeight(v) - smallDouble);
+        } else {
+            //biases
+            biasIndex = v - policyFunction->getNumWeights();
+
+            oldSurrogate = advantage * getReward(timeStep, numSamples);
+            policyFunction->setBias(biasIndex, policyFunction->getBias(biasIndex) + smallDouble);
+            newSurrogate = advantage * getReward(timeStep, numSamples);
+
+            //record partial derivative for this variable
+            gradient.push_back((newSurrogate - oldSurrogate) / smallDouble);
+
+            //reset the value
+            policyFunction->setBias(biasIndex, policyFunction->getBias(biasIndex) - smallDouble);
+        }
+    }
+
+    //now adjust all the variables based on the gradient approximation
+    for(int v = 0; v < policyFunction->getNumBiases() + policyFunction->getNumWeights(); v++){
+
+        //adjusting weights
+        if(v < policyFunction->getNumWeights()){
+            policyFunction->setWeight(v, policyFunction->getWeight(v) - learningRate * direction * gradient[v]);
+        } else {
+            //biases
+            biasIndex = v - policyFunction->getNumWeights();
+            policyFunction->setBias(biasIndex, policyFunction->getBias(biasIndex) - learningRate * direction * gradient[v]);
+        }
+    }
+
+    //std::cout << "Surrogate function = " << advantage * getReward(timeStep, numSamples) << std::endl;
+}
+
+void NumberCatchingAI::setState(std::vector<double> state){
+    numbers.clear();
+    NumberRecord n;
+
+
+    //Note: highest numbers are at the top
+    //possible issue here of too many entries in the numbers deque
+    for(int i = 0; i < state.size() - 1; i+= 3){
+        n.column = state[i];
+        n.row = state[i + 1];
+        n.value = state[i + 2];
+        numbers.push_back(n);
+    }
+
+    playerLocation = state[state.size() - 1];
 }
 
 void NumberCatchingAI::trainAIPPO(int iterations, int timeSteps, int epochs, double learningRate){
     
     std::vector<double> scores = std::vector<double>();
+    std::vector<std::vector<double>> states = std::vector<std::vector<double>>();
+    std::vector<std::vector<double>> nnOutputs = std::vector<std::vector<double>>();
     std::vector<double> advantages = std::vector<double>();
+    std::vector<int> ordering = std::vector<int>();
     const double epsilon = 0.2;
+
+    std::vector<std::vector<double>> trainInputs = std::vector<std::vector<double>>();
+    std::vector<std::vector<double>> trainOutputs = std::vector<std::vector<double>>();
+
 
     for(int i = 0; i < iterations; i++){
         //run for timesteps, collect data long the way
@@ -548,13 +688,38 @@ void NumberCatchingAI::trainAIPPO(int iterations, int timeSteps, int epochs, dou
             //get score before action
             scores.push_back(score);
             //perform action with current policy
+            nnOutputs.push_back(policyFunction->runNetwork(encodeState()));
             performAction(getBestAction());
+            states.push_back(encodeState());
         }
         //calculate advantages for each timestep
         for(int t = 0; t < timeSteps; t++){
-            //
+            advantages.push_back(getAdvantage(t, scores, states));
+            //std::cout << "Advantage: " << advantages[t] << std::endl;
         }
 
+        //add training data based on advantages
+        for(int t = 0; t < advantages.size(); t++){
+            trainInputs.push_back(states[t]);
+
+            nnOutputs[t][NumberCatchingAI::highestIndex(nnOutputs[t])] += advantages[t] * getReward(t, 100);
+            trainOutputs.push_back(nnOutputs[t]);
+        }
+        //set training data
+        policyFunction->setTrainingInputs(trainInputs);
+        policyFunction->setTrainingOutputs(trainOutputs);
+
+        //now perform SGD optimization
+        policyFunction->gradientDescent(0, epochs, learningRate);
+        advantages.clear();
+        trainInputs.clear();
+        trainOutputs.clear();
+        nnOutputs.clear();
+        states.clear();
+        
+        
+        
+        std::cout << "Avg Score iteration " << i << " = " << runGame(1000) << std::endl;
     }
 }
 
@@ -564,7 +729,13 @@ int main(){
 
     std::cout << "Random score: " << n.runGame(100) << std::endl;
 
-    n.trainAIExperimental(10000, 100, 1);
+    //n.trainAIExperimental(10000, 100, 1);
+
+    for(int i = 0; i < 10; i++){
+        std::cout << "Reward at state " << i << " = " << n.getReward(i) << std::endl;
+    }
+
+    n.trainAIPPO(1000, 50, 50, 0.001);
 
     
     
