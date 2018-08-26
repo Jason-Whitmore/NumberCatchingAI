@@ -109,6 +109,8 @@ NeuralNetwork::~NeuralNetwork() {
 
 
 
+
+
 std::vector<double> NeuralNetwork::runNetwork(std::vector<double> inputs) {
 
 	layers->at(1).setInputArray(inputs);
@@ -169,25 +171,23 @@ void NeuralNetwork::gradientDescent(double targetLoss, int maxIterations, double
 		//loop through each dataset during descent
 		for (int data = 0; data < trainingInputs.size(); data++) {
 			//calculate gradient
-			//gradient = getLossGradient(order[data]);
+			gradient = getLossGradient(order[data]);
 
 			//change variables to reflect gradient
 
-			indexOrder = NNHelper::randomOrder(numWeights + numBiases);
 
 			for (int i = 0; i < numWeights + numBiases; i++) {
-				if (indexOrder[i] < numWeights) {
+				if (i < numWeights) {
 					//change weights
-					derivative = getLossDerivative(indexOrder[i], data);
+					
 
-					setWeight(indexOrder[i], getWeight(indexOrder[i]) - learningRate * derivative);
+					setWeight(i, getWeight(i) - learningRate * gradient[i]);
 
 				} else {
 
 					//change biases
-					derivative = getLossDerivative(indexOrder[i], data);
 
-					setBias(indexOrder[i] - numWeights, getBias(indexOrder[i] - numWeights) - learningRate * derivative);
+					setBias(i - numWeights, getBias(i - numWeights) - learningRate * gradient[i - numWeights]);
 				}
 
 				
@@ -198,11 +198,11 @@ void NeuralNetwork::gradientDescent(double targetLoss, int maxIterations, double
 
 		}
 
-		//std::cout << "Loss = " << calculateCurrentLoss() << std::endl;
+		std::cout << "Loss = " << calculateCurrentLoss() << std::endl;
 		currentLoss = calculateCurrentLoss();
 
 		if (currentLoss < bestLoss) {
-			//std::cout << "New best loss found: " << currentLoss << ", iteration " << iterations << std::endl;
+			std::cout << "New best loss found: " << currentLoss << ", iteration " << iterations << std::endl;
 
 			saveNetwork("networkData.txt");
 
@@ -220,7 +220,7 @@ void NeuralNetwork::gradientDescent(double targetLoss, int maxIterations, double
 std::vector<double> NeuralNetwork::getLossGradient(int trainingIndex) {
 	//this is used for the approximation, value must be small but not small enough to cause errors.
 
-	double veryTinyDouble = 0.00000001;
+	double veryTinyDouble = 0.01;
 
 
 	//the first part of this vector is the weights, the second part is the biases (ordered by index)
@@ -279,22 +279,11 @@ std::vector<double> NeuralNetwork::getLossGradient(int trainingIndex) {
 	}
 
 	return result;
-	for (int i = 0; i < result.size(); i++) {
-		if (std::abs(result[i]) > 10) {
-			if (result[i] < 0) {
-				result[i] = -10;
-			} else {
-				result[i] = 10;
-			}
-			
-		}
-	}
-	return result;
 }
 
 double NeuralNetwork::getLossDerivative(int variableIndex, int trainingIndex) {
 
-	double verySmallDouble = 0.00001;
+	double verySmallDouble = 0.001;
 	double placeHolder;
 
 	double r;
@@ -709,3 +698,136 @@ double NeuralNetwork::calculateCurrentLoss() {
 	return loss / trainingOutputs.size();
 }
 
+void NeuralNetwork::optimizeRandomVariable(int numOfSteps, double stepSize, double randMin, double randMax){
+	//need to find proportion of biases to totalVariables
+	double biasesToTotalVariables = ((double)numBiases - numInputs) / (numBiases - numInputs + numWeights);
+
+	if (NNHelper::randomDouble(0,1) > biasesToTotalVariables) {
+		//pick a weight to optimize
+		int weightIndex = NNHelper::randomInt(0, numWeights);
+
+		int currentWeightIndex = 0;
+		int currentLayerIndex = 1;
+
+		//find layer that contains the right index
+		while (currentWeightIndex + layers->at(currentLayerIndex).getNumWeights() <= weightIndex) {
+			currentWeightIndex += layers->at(currentLayerIndex).getNumWeights();
+			currentLayerIndex++;
+		}
+
+		//layer index found
+		//calculate the index for the weight within the current layer
+		weightIndex = weightIndex - currentWeightIndex;
+
+		double prevLoss;
+		double currentDelta = stepSize;
+		for (int i = 0; i < numOfSteps; i++) {
+			prevLoss = calculateCurrentLoss();
+			//make changes
+			layers->at(currentLayerIndex).setWeight(weightIndex, layers->at(currentLayerIndex).getWeight(weightIndex) + currentDelta);
+
+			//backtrack if loss got worse
+			if (calculateCurrentLoss() > prevLoss) {
+				currentDelta *= -0.5;
+			}
+
+
+		}
+		
+
+
+
+	} else {
+		//pick a bias to optimize
+		//pick a weight to optimize
+		int biasIndex = NNHelper::randomInt(numInputs, numBiases);
+
+		
+
+		int currentBiasIndex = 0;
+		int currentLayerIndex = 0;
+
+		//find layer that contains the right index
+		while (currentBiasIndex + layers->at(currentLayerIndex).getNumBiases() <= biasIndex) {
+			currentBiasIndex += layers->at(currentLayerIndex).getNumBiases();
+
+		}
+
+		//layer index found
+		//calculate the index for the weight within the current layer
+		biasIndex = biasIndex - currentBiasIndex;
+
+		double prevLoss;
+		double currentDelta = stepSize;
+		for (int i = 0; i < numOfSteps; i++) {
+			prevLoss = calculateCurrentLoss();
+			//make changes
+			layers->at(currentLayerIndex).setBias(biasIndex, layers->at(currentLayerIndex).getBias(biasIndex) + currentDelta);
+
+			//backtrack if loss got worse
+			if (calculateCurrentLoss() > prevLoss) {
+				currentDelta *= -0.5;
+			}
+
+		}
+
+	}
+}
+
+void NeuralNetwork::trainNetwork(double targetLoss, int maxIterations, int numOfSteps, double numPassesScalar, double stepSize, double randMin, double randMax, bool displayStats) {
+	std::vector<NodeLayer>* startLayers = layers;
+	std::vector<NodeLayer>* bestLayers = layers;
+	double currentLoss = calculateCurrentLoss();
+	double bestLoss = currentLoss;
+
+	int improvements = 0;
+	double progress = 0;
+
+	for(int i = 0; i < maxIterations && bestLoss > targetLoss; i++) {
+		randomizeVariables(randMin, randMax);
+		
+
+		for (int pass = 0; pass < ((numBiases - numInputs) + numWeights) * numPassesScalar; pass++) {
+			optimizeRandomVariable(numOfSteps, (1 - progress)* stepSize, randMin, randMax);
+			progress = ((double)pass) / (((numBiases - numInputs) + numWeights) * numPassesScalar);
+
+			//std::cout << "Loss during pass " << pass << ": " << calculateCurrentLoss() << std::endl;
+		}
+
+		currentLoss = calculateCurrentLoss();
+
+		if (bestLoss > currentLoss) {
+			
+			//bestLayers = new std::vector<NodeLayer>(*layers);
+			bestLoss = currentLoss;
+			//layers = startLayers;
+			saveNetwork("networkData.txt");
+			improvements++;
+			//debugLayers();
+
+		}
+
+		if (displayStats && i % 10 == 0) {
+			system("CLS");
+			std::cout << "Iteration: " << i << "/" << maxIterations << std::endl;
+			std::cout << "Best Loss: " << bestLoss << std::endl;
+			std::cout << "Number of Improvements to loss: " << improvements << std::endl;
+			std::cout << "Current Loss: " << currentLoss << std::endl;
+			
+		}
+		
+
+	}
+
+	
+
+
+	//loadBiases("biases.txt");
+	//loadWeights("weights.txt");
+	loadNetwork("networkData.txt");
+	std::cout << "Loss reached = " << calculateCurrentLoss() << std::endl;
+
+	//debugLayers();
+	return;
+	//debugLayers();
+}

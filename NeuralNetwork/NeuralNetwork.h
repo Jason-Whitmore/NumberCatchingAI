@@ -38,10 +38,12 @@ class NeuralNetwork {
 	void setTrainingInputs(std::vector<std::vector<double>> inputs);
 	void setTrainingOutputs(std::vector<std::vector<double>> outputs);
 	double calculateCurrentLoss();
-
+	void trainNetwork(double targetLoss, int maxIterations, int numOfSteps, double numPassesScalar, double stepSize, double randMin, double randMax, bool displayStats);
 	std::vector<std::vector<double>> getTrainingInputs();
 	std::vector<std::vector<double>> getTrainingOutputs();
 
+	void optimizeRandomVariable(int numOfSteps, double stepSize, double randMin, double randMax);
+	
 	void debugLayers();
 	void debugLayer(int layerNum);
 

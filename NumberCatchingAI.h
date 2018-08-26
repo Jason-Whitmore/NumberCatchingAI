@@ -4,6 +4,7 @@
 #include <queue>
 #include <random>
 #include <stdlib.h>
+#include <unistd.h>
 #include "NeuralNetwork/NeuralNetwork.h"
 
 struct NumberRecord{
@@ -50,6 +51,9 @@ class NumberCatchingAI{
 
     static int getRandomInt(int min, int max);
     static double getAverage(std::vector<double> data);
+    static double getStandardDeviaton(std::vector<double> data);
+    static double positiveCount(std::vector<double> data);
+    double runGameHuman();
     
     static std::vector<double> getDeltas(std::vector<double> scores);
 
