@@ -198,11 +198,11 @@ void NeuralNetwork::gradientDescent(double targetLoss, int maxIterations, double
 
 		}
 
-		std::cout << "Loss = " << calculateCurrentLoss() << std::endl;
+		//std::cout << "Loss = " << calculateCurrentLoss() << std::endl;
 		currentLoss = calculateCurrentLoss();
 
 		if (currentLoss < bestLoss) {
-			std::cout << "New best loss found: " << currentLoss << ", iteration " << iterations << std::endl;
+			//std::cout << "New best loss found: " << currentLoss << ", iteration " << iterations << std::endl;
 
 			saveNetwork("networkData.txt");
 
@@ -220,7 +220,7 @@ void NeuralNetwork::gradientDescent(double targetLoss, int maxIterations, double
 std::vector<double> NeuralNetwork::getLossGradient(int trainingIndex) {
 	//this is used for the approximation, value must be small but not small enough to cause errors.
 
-	double veryTinyDouble = 0.01;
+	double veryTinyDouble = 0.0001;
 
 
 	//the first part of this vector is the weights, the second part is the biases (ordered by index)

@@ -41,8 +41,8 @@ NumberCatchingAI::NumberCatchingAI(){
     turnLimit = 200;
 
     std::vector<int> config = std::vector<int>();
-    config.push_back(32);
-    config.push_back(32);
+    config.push_back(5);
+    config.push_back(5);
     policyFunction = new NeuralNetwork(16,3,config);
     policyFunction->randomizeVariables(-.1,.1);
     policyFunction->saveNetwork("networkData.txt");
@@ -143,6 +143,7 @@ void NumberCatchingAI::performAction(int action){
         environment[numbers[i].row][numbers[i].column] = '0' + numbers[i].value;
     }
     turnNumber++;
+    usleep(10);
 }
 
 
@@ -764,7 +765,7 @@ void NumberCatchingAI::trainAIPPO(int iterations, int timeSteps, int epochs, dou
         policyFunction->setTrainingOutputs(trainOutputs);
 
         //now perform SGD optimization
-        policyFunction->trainNetwork(0.01, epochs, 200, 2, learningRate, -10, 10, false);
+        policyFunction->gradientDescent(0.05, 1000, 0.001);
         advantages.clear();
         trainInputs.clear();
         trainOutputs.clear();
@@ -772,7 +773,7 @@ void NumberCatchingAI::trainAIPPO(int iterations, int timeSteps, int epochs, dou
         states.clear();
         
         policyFunction->loadNetwork("networkData.txt");
-        
+        std::cout << "Current Loss = " << policyFunction->calculateCurrentLoss() << std::endl;
         std::cout << "Avg Score iteration " << i << " = " << runGame(100) << std::endl;
     }
 }
