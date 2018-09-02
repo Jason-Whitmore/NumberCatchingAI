@@ -41,8 +41,8 @@ NumberCatchingAI::NumberCatchingAI(){
     turnLimit = 200;
 
     std::vector<int> config = std::vector<int>();
-    config.push_back(5);
-    config.push_back(5);
+    config.push_back(8);
+    config.push_back(8);
     policyFunction = new NeuralNetwork(16,3,config);
     policyFunction->randomizeVariables(-.1,.1);
     policyFunction->saveNetwork("networkData.txt");
@@ -713,6 +713,32 @@ double NumberCatchingAI::runGameHuman(){
     return score;
 }
 
+double NumberCatchingAI::getReward(std::vector<double> state, int action){
+    const double c = 0.1;
+    double r = 0;
+
+    NumberCatchingAI copy = NumberCatchingAI();
+    copy.setState(state);
+
+    double rewardBefore = copy.score;
+    copy.performAction(action);
+
+    r = copy.score - rewardBefore;
+
+    //calculate distances
+
+    double deltaX;
+    double deltaY;
+
+    for(int i = 0; i < 5; i++){
+        deltaX = copy.numbers[i].column - copy.playerLocation;
+        deltaY = 25 - copy.numbers[i].row;
+        r += ((double)copy.numbers[i].value) / std::sqrt(deltaX * deltaX + deltaY * deltaY);
+    }
+
+    return r;
+}
+
 void NumberCatchingAI::trainAIPPO(int iterations, int timeSteps, int epochs, double learningRate){
     
     std::vector<double> scores = std::vector<double>();
@@ -727,7 +753,7 @@ void NumberCatchingAI::trainAIPPO(int iterations, int timeSteps, int epochs, dou
 
     std::vector<double> surrogate = std::vector<double>();
 
-
+    turnLimit = 200;
     for(int i = 0; i < iterations; i++){
         std::cout << std::endl;
         resetGame();
@@ -756,7 +782,7 @@ void NumberCatchingAI::trainAIPPO(int iterations, int timeSteps, int epochs, dou
             surrogate.push_back(1 - epsilon);
             surrogate.push_back(1 + epsilon);
 
-            nnOutputs[t][NumberCatchingAI::highestIndex(nnOutputs[t])] =  advantages[t] * min(surrogate);
+            nnOutputs[t][NumberCatchingAI::highestIndex(nnOutputs[t])] =  NNHelper::RELUFunction( advantages[t] * min(surrogate),0);
             surrogate.clear();
             trainOutputs.push_back(nnOutputs[t]);
         }
@@ -765,7 +791,7 @@ void NumberCatchingAI::trainAIPPO(int iterations, int timeSteps, int epochs, dou
         policyFunction->setTrainingOutputs(trainOutputs);
 
         //now perform SGD optimization
-        policyFunction->gradientDescent(0.05, 1000, 0.001);
+        policyFunction->gradientDescent(0.05, 100, 0.001);
         advantages.clear();
         trainInputs.clear();
         trainOutputs.clear();
@@ -782,9 +808,9 @@ void NumberCatchingAI::trainAIPPO(int iterations, int timeSteps, int epochs, dou
 
 int main(){
     NumberCatchingAI n = NumberCatchingAI();
-    
 
-    n.trainAIPPO(1000, 20, 10, 0.1);
+
+    n.trainAIPPO(1000, 100, 10, 0.1);
 
 
     //compiles with: g++ -g -std=c++11 *.h *.cpp NeuralNetwork/*.h NeuralNetwork/*.cpp

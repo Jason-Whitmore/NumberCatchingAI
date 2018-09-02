@@ -30,6 +30,10 @@ double NNHelper::dotProduct(double a[], double b[], int length) {
 
 
 double NNHelper::RELUFunction(double input, double bias) {
+	//
+	//return std::tanh(input + bias);
+
+
 	double newInput = input + bias;
 
 	if (newInput < 0) {

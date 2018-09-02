@@ -59,6 +59,7 @@ class NumberCatchingAI{
 
     static double getReward(std::deque<double> scores, double discountFactor);
     static double getReward(std::vector<double> scores, double discountFactor);
+    static double getReward(std::vector<double> state, int action);
 
     double getReward(int timeStep);
     double getReward(int timeStep, int sampleCount);
