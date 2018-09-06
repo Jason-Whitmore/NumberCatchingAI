@@ -698,7 +698,7 @@ double NeuralNetwork::calculateCurrentLoss() {
 	return loss / trainingOutputs.size();
 }
 
-void NeuralNetwork::optimizeRandomVariable(int numOfSteps, double stepSize, double randMin, double randMax){
+void NeuralNetwork::optimizeRandomVariable(int numOfSteps, double stepSize){
 	//need to find proportion of biases to totalVariables
 	double biasesToTotalVariables = ((double)numBiases - numInputs) / (numBiases - numInputs + numWeights);
 
@@ -788,7 +788,7 @@ void NeuralNetwork::trainNetwork(double targetLoss, int maxIterations, int numOf
 		
 
 		for (int pass = 0; pass < ((numBiases - numInputs) + numWeights) * numPassesScalar; pass++) {
-			optimizeRandomVariable(numOfSteps, (1 - progress)* stepSize, randMin, randMax);
+			optimizeRandomVariable(numOfSteps, (1 - progress)* stepSize);
 			progress = ((double)pass) / (((numBiases - numInputs) + numWeights) * numPassesScalar);
 
 			//std::cout << "Loss during pass " << pass << ": " << calculateCurrentLoss() << std::endl;

@@ -59,7 +59,13 @@ class NumberCatchingAI{
 
     static double getReward(std::deque<double> scores, double discountFactor);
     static double getReward(std::vector<double> scores, double discountFactor);
-    static double getReward(std::vector<double> state, int action);
+    double getReward(std::vector<double> state, int action);
+
+    
+    static double sigmoid(double value);
+    double probRatio(std::vector<double> state, int action);
+    static std::vector<double> normalizeVector(std::vector<double> vec);
+    static std::vector<double> calculateProbabilities(std::vector<double> normalized);
 
     double getReward(int timeStep);
     double getReward(int timeStep, int sampleCount);
@@ -68,7 +74,7 @@ class NumberCatchingAI{
     
 
     static double min(std::vector<double> vec);
-    static double clip(double value);
+    static double clip(double value, double min, double max);
 
     double getAdvantage(int timeStep, std::vector<double> scores, std::vector<std::vector<double>> states);
 

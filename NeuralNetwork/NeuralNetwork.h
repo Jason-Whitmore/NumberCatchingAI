@@ -42,7 +42,7 @@ class NeuralNetwork {
 	std::vector<std::vector<double>> getTrainingInputs();
 	std::vector<std::vector<double>> getTrainingOutputs();
 
-	void optimizeRandomVariable(int numOfSteps, double stepSize, double randMin, double randMax);
+	void optimizeRandomVariable(int numOfSteps, double stepSize);
 	
 	void debugLayers();
 	void debugLayer(int layerNum);
