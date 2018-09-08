@@ -761,6 +761,8 @@ void NumberCatchingAI::trainAIPPO(int iterations, int timeSteps, int epochs, dou
 
     std::vector<double> avgScores = std::vector<double>();
 
+    std::string csvString = "";
+
     for(int i = 0; i < iterations; i++){
         
         resetGame();
@@ -802,7 +804,7 @@ void NumberCatchingAI::trainAIPPO(int iterations, int timeSteps, int epochs, dou
         policyFunction->saveNetwork("oldNetworkData.txt");
         //now perform SGD optimization
         //policyFunction->trainNetwork(0.05, 10, 100, 1.5, 0.01, -10,10,false);
-        policyFunction->gradientDescent(0.05, 10, learningRate);
+        policyFunction->gradientDescent(0.1, 3, learningRate);
         policyFunction->saveNetwork("networkData.txt");
         advantages.clear();
         trainInputs.clear();
@@ -814,10 +816,11 @@ void NumberCatchingAI::trainAIPPO(int iterations, int timeSteps, int epochs, dou
         policyFunction->loadNetwork("networkData.txt");
         //std::cout << "Current Loss = " << policyFunction->calculateCurrentLoss() << std::endl;
         avgScores.push_back(runGame(10));
-        if(i % 5 == 0){
-            std::cout << "Iteration " << i << " score = " << getAverage(avgScores) << std::endl;
-            avgScores.clear();
-        }
+        
+        std::cout << "Iteration " << i << " complete" << std::endl;
+        csvString += i;
+        csvString += "," + std::to_string(runGame(10)) + "\n";
+        
         //std::cout << "Avg Score iteration " << i << " = " << runGame(100) << std::endl;
         //std::cout << std::endl;
     }
@@ -829,7 +832,7 @@ int main(){
     NumberCatchingAI n = NumberCatchingAI();
 
 
-    n.trainAIPPO(1000, 100, 10, 0.0001);
+    n.trainAIPPO(1000, 10000, 10, 0.00001);
 
     double bestScore = -300;
     double currentScore = -300;
