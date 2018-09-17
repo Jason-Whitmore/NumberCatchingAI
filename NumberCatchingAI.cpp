@@ -42,8 +42,8 @@ NumberCatchingAI::NumberCatchingAI(){
     turnLimit = 200;
 
     std::vector<int> config = std::vector<int>();
-    config.push_back(64);
-    config.push_back(64);
+    config.push_back(20);
+    config.push_back(20);
     policyFunction = new NeuralNetwork(16,3,config);
     policyFunction->randomizeVariables(-.1,.1);
     policyFunction->saveNetwork("networkData.txt");
@@ -462,6 +462,28 @@ double NumberCatchingAI::positiveCount(std::vector<double> data){
     return count / data.size();
 }
 
+void NumberCatchingAI::printTukeySummary(std::vector<double> data){
+    double min = data[0];
+    double max = data[0];
+
+    for(int i = 0; i < data.size(); i++){
+        if(data[i] < min){
+            min = data[i];
+        }
+        if(data[i] > max){
+            max = data[i];
+        }
+    }
+    //sort data to find the q2, median and q3 numbers
+    std::sort(data.begin(), data.end());
+    double median = data[data.size() / 2];
+
+    double q1 = data[data.size() / 4];
+    double q3 = data[(int)((3.0/4.0) * data.size())];
+
+    std::cout << "Five number summary = (" << min << ", " << q1 << ", " << median << ", " << q3 << ", " << max << ")" << std::endl;
+}
+
 double NumberCatchingAI::getStandardDeviaton(std::vector<double> data){
     double mean = getAverage(data);
 
@@ -857,7 +879,8 @@ void NumberCatchingAI::trainAIPPO(int iterations, int timeSteps, int epochs, dou
         policyFunction->loadNetwork("networkData.txt");
         
         std::cout << "Iteration " << i << " complete. Avg score = " << runGame(10) << " Loss = " << policyFunction->calculateCurrentLoss() << std::endl;
-        std::cout << "Avg probability for chosen action = " << getAverage(probs) << " Standard Devation = " << getStandardDeviaton(probs) << std::endl;
+        std::cout << "Avg probability for chosen action = " << getAverage(probs) << std::endl;
+        printTukeySummary(probs);
         trainInputs.clear();
         trainOutputs.clear();
         probs.clear();
