@@ -5,6 +5,7 @@
 #include <random>
 #include <cmath>
 #include <fstream>
+//#include <math>
 #pragma once
 class NeuralNetwork {
 	public:

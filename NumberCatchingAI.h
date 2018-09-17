@@ -20,7 +20,9 @@ class NumberCatchingAI{
     void printGame();
     
     std::vector<std::vector<char>> environment;
-    std::deque<NumberRecord> numbers;
+    std::vector<NumberRecord> numbers;
+
+    
 
     
 
@@ -61,7 +63,7 @@ class NumberCatchingAI{
     static double getReward(std::vector<double> scores, double discountFactor);
     double getReward(std::vector<double> state, int action);
 
-    
+    double probability(std::vector<double> state, int action);
     static double sigmoid(double value);
     double probRatio(std::vector<double> state, int action);
     static std::vector<double> normalizeVector(std::vector<double> vec);

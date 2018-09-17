@@ -278,6 +278,21 @@ std::vector<double> NeuralNetwork::getLossGradient(int trainingIndex) {
 		
 	}
 
+	for(int i = 0; i < result.size(); i++){
+
+		if(std::isnan(result[i])){
+			result[i] = 1000;
+		}
+
+		if(result[i] > 1000){
+			result[i] = 1000;
+		}
+
+		if(result[i] < -1000){
+			result[i] = -1000;
+		}
+	}
+
 	return result;
 }
 
@@ -690,11 +705,15 @@ double NeuralNetwork::calculateCurrentLoss() {
 		//networkOutputs = runNetwork(NNHelper::arrayToVector(dataRow, trainingInputs->getNumCols()));
 		//caclulate loss and add to sum
 		for (int c = 0; c < trainingOutputs[0].size(); c++) {
-
-			loss += NNHelper::calculateLoss(trainingOutputs[r][c], networkOutputs[c]) * (1.0 / trainingInputs[0].size());
+			double localLoss = NNHelper::calculateLoss(trainingOutputs[r][c], networkOutputs[c]) * (1.0 / (trainingInputs[0].size() + 1e-3));
+			if(std::isnan(localLoss)){
+				std::cout << "Loss = nan here";
+			}
+			loss += localLoss;
 			dataPointCount++;
 		}
 	}
+	
 	return loss / trainingOutputs.size();
 }
 

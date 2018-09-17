@@ -25,15 +25,16 @@ NumberCatchingAI::NumberCatchingAI(){
     int colLocation;
     int value;
     NumberRecord n;
+    numbers = std::vector<NumberRecord>(5);
     for(int row = 0; row < 25; row += 5){
         colLocation = getRandomInt(0, 15);
         value = getRandomInt(1,9);
-        environment[row][colLocation] = '0' + value;
+        //environment[row][colLocation] = '0' + value;
         n.column = colLocation;
         n.row = row;
         n.value = value;
 
-        numbers.push_front(n);
+        numbers[row / 5] = n;
     }
 
     score = 0;
@@ -47,6 +48,8 @@ NumberCatchingAI::NumberCatchingAI(){
     policyFunction->randomizeVariables(-.1,.1);
     policyFunction->saveNetwork("networkData.txt");
     discountFactor = 0.9;
+
+    
 }
 
 void NumberCatchingAI::resetGame(){
@@ -62,16 +65,16 @@ void NumberCatchingAI::resetGame(){
     int colLocation;
     int value;
     NumberRecord n;
-    numbers.clear();
+    numbers = std::vector<NumberRecord>(5);
     for(int row = 0; row < 25; row += 5){
         colLocation = getRandomInt(0, 15);
         value = getRandomInt(1,9);
-        environment[row][colLocation] = '0' + value;
+        //environment[row][colLocation] = '0' + value;
         n.column = colLocation;
         n.row = row;
         n.value = value;
 
-        numbers.push_front(n);
+        numbers[row / 5] = n;
     }
 
     score = 0;
@@ -81,6 +84,21 @@ void NumberCatchingAI::resetGame(){
 }
 
 void NumberCatchingAI::printGame(){
+    //first, clear the board
+    for(int r = 0; r < environment.size(); r++){
+        
+        for(int c = 0; c < environment[0].size(); c++){
+            environment[r][c] = ' ';
+        }
+    }
+    //now look at the records at create board from there
+    for(int i = 0; i < numbers.size(); i++){
+        environment[numbers[i].row][numbers[i].column] = '0' + numbers[i].value;
+    }
+
+    //player position
+    environment[24][playerLocation] = 'U';
+    
     for(int r = 0; r < environment.size(); r++){
         //std::cout << "-------------------------------" << std::endl;
         for(int c = 0; c < environment[0].size(); c++){
@@ -104,17 +122,15 @@ void NumberCatchingAI::performAction(int action){
     if(newPos > 14){
         newPos = 14;
     }
-    environment[24][playerLocation] = ' ';
-    playerLocation = newPos;
-    environment[24][playerLocation] = 'U';
 
-    //minor movement penalty
-    score -= 0.0;
+    playerLocation = newPos;
+
 
     //move numbers down
 
     NumberRecord n;
     //adjust score if needed
+    NumberRecord temp;
     for(int i = 0; i < 5; i++){
         environment[numbers[i].row][numbers[i].column] = ' ';
         numbers[i].row += 1;
@@ -125,14 +141,18 @@ void NumberCatchingAI::performAction(int action){
                 score -= numbers[i].value;
             }
 
-            numbers.pop_front();
-            i--;
+            //shift all numbers to the "right" one spot "erasing" the bottommost entry
+            for(int j = numbers.size() - 1; j > 0; j--){
+                numbers[j] = numbers[j - 1];
+            }
+            
+            //i--;
 
             //insert new number
             n.row = 0;
             n.column = getRandomInt(0, 15);
             n.value = getRandomInt(1,9);
-            numbers.push_back(n);
+            numbers[0] = n;
         }
         
     }
@@ -341,7 +361,7 @@ std::vector<double> NumberCatchingAI::encodeState(){
     }
 
     ret.push_back((double)playerLocation);
-
+    //how the encoding looks like right now: topmost ... bottommost entries, position of player
     return ret;
 }
 
@@ -370,6 +390,17 @@ int NumberCatchingAI::getBestAction(){
 
     //calculate the best action based on the current policy
 
+
+    //stochastic policy here
+    std::vector<double> probabilities = normalizeVector(outputs);
+
+    for(int i = 0; i < probabilities.size(); i++){
+        if(NNHelper::randomDouble(0,1) < probabilities[i]){
+            return i - 1;
+        }
+    }
+
+    //use this return for deterministic
     return highestIndex(outputs) - 1;
 }
 
@@ -567,11 +598,12 @@ double NumberCatchingAI::getValue(int timeStep){
 double NumberCatchingAI::getValue(std::vector<double> state){
     std::vector<double> oldState = encodeState();
     double oldScore = score;
+    int oldTurnNumber = turnNumber;
 
 
     setState(state);
-    const int localHorizon = (int)(std::log10(0.01) / std::log10(discountFactor));
-    const int iterations = 100;
+    const int localHorizon = 15;
+    const int iterations = 1000;
     double sum = 0;
     double currentSum = 0;
     std::vector<double> rewards = std::vector<double>();
@@ -597,6 +629,7 @@ double NumberCatchingAI::getValue(std::vector<double> state){
     rewards.clear();
     setState(oldState);
     score = oldScore;
+    turnNumber = oldTurnNumber;
     //return average reward
     return currentSum / iterations;
 }
@@ -621,15 +654,17 @@ void NumberCatchingAI::setState(std::vector<double> state){
     NumberRecord n;
 
 
-    //Note: highest numbers are at the top
+    numbers = std::vector<NumberRecord>(5);
+    int currentNumber = 0;
     //possible issue here of too many entries in the numbers deque
     for(int i = 0; i < state.size() - 1; i+= 3){
         n.column = state[i];
         n.row = state[i + 1];
         n.value = state[i + 2];
-        numbers.push_back(n);
+        numbers[currentNumber] = n;
+        currentNumber++;
     }
-
+    
     playerLocation = state[state.size() - 1];
 }
 
@@ -638,6 +673,7 @@ double NumberCatchingAI::runGameHuman(){
     std::string input;
     while(turnNumber < turnLimit){
         printGame();
+        std::cout << "Current Value = " << getValue(encodeState()) << std::endl;
         std::cin >> input;
         if(input == "l"){
             performAction(-1);
@@ -681,22 +717,28 @@ double NumberCatchingAI::getReward(std::vector<double> state, int action){
     return r;
 }
 
-double NumberCatchingAI::sigmoid(double value){
-    return 1.0/(1 + std::pow(2, -value));
+double NumberCatchingAI::probability(std::vector<double> state, int action){
+
+    std::vector<double> probabilities = policyFunction->runNetwork(state);
+
+    probabilities = normalizeVector(probabilities);
+
+    return probabilities[action + 1];
 }
 
 std::vector<double> NumberCatchingAI::normalizeVector(std::vector<double> vec){
     std::vector<double> ret = std::vector<double>();
 
-    //forward declaration
-    double min(std::vector<double> v);
-    //find min
-    double minimum = NumberCatchingAI::min(vec);
 
-    //normalize wrt min
+    //normalize with softmax
+    double sum = 0;
+    for(int i = 0; i < vec.size(); i++){
+        sum += std::exp(vec[i]);
+    }
+    sum += 1e-5;
 
     for(int i = 0; i < vec.size(); i++){
-        ret.push_back(vec[i] - minimum + 1);
+        ret.push_back(std::exp(vec[i]) / sum);
     }
 
     return ret;
@@ -725,16 +767,16 @@ double NumberCatchingAI::probRatio(std::vector<double> state, int action){
     //get old prob ratio
     policyFunction->loadNetwork("oldNetworkData.txt");
     std::vector<double> networkOutput = policyFunction->runNetwork(state);
-    double oldProb = calculateProbabilities(normalizeVector(networkOutput))[action + 1];
+    double oldProb = normalizeVector(networkOutput)[action + 1];
 
     //get new prob ratio
     policyFunction->loadNetwork("networkData.txt");
     networkOutput = policyFunction->runNetwork(state);
-    double newProb = calculateProbabilities(normalizeVector(networkOutput))[action + 1];
+    double newProb = normalizeVector(networkOutput)[action + 1];
 
-    if(newProb/oldProb > 10000){
-        std::cout << "Big prob = " << newProb/oldProb << std::endl;
-        std::cout << "Numerator = " << newProb << " Denominator = " << oldProb << std::endl;
+    if(newProb/oldProb > 2){
+        //std::cout << "Big prob = " << newProb/oldProb << std::endl;
+        //std::cout << "Numerator = " << newProb << " Denominator = " << oldProb << std::endl;
     }
     //std::cout << "Prob ratio = " << newProb / oldProb << std::endl;
     return newProb/oldProb;
@@ -759,7 +801,7 @@ void NumberCatchingAI::trainAIPPO(int iterations, int timeSteps, int epochs, dou
     std::vector<double> rewards = std::vector<double>();
     int bestAction;
 
-    std::vector<double> avgScores = std::vector<double>();
+    std::vector<double> probs = std::vector<double>();
 
     std::string csvString = "";
 
@@ -789,10 +831,10 @@ void NumberCatchingAI::trainAIPPO(int iterations, int timeSteps, int epochs, dou
         
         for(int t = 0; t < advantages.size(); t++){
             trainInputs.push_back(states[t]);
-            surrogate.push_back(advantages[t] * probRatio(states[t], actions[t]));
+            surrogate.push_back(advantages[t] * clip(probRatio(states[t], actions[t]), 0, 10));
             surrogate.push_back(clip(probRatio(states[t], actions[t]), 1 - epsilon, 1 + epsilon) * advantages[t]);
 
-
+            probs.push_back(probability(states[t], actions[t]));
 
             nnOutputs[t][NumberCatchingAI::highestIndex(nnOutputs[t])] =  1 * min(surrogate);
             surrogate.clear();
@@ -804,25 +846,21 @@ void NumberCatchingAI::trainAIPPO(int iterations, int timeSteps, int epochs, dou
         policyFunction->saveNetwork("oldNetworkData.txt");
         //now perform SGD optimization
         //policyFunction->trainNetwork(0.05, 10, 100, 1.5, 0.01, -10,10,false);
-        policyFunction->gradientDescent(0.1, 3, learningRate);
+        policyFunction->gradientDescent(0.5, epochs, learningRate);
         policyFunction->saveNetwork("networkData.txt");
         advantages.clear();
-        trainInputs.clear();
-        trainOutputs.clear();
+        
         nnOutputs.clear();
         states.clear();
         rewards.clear();
         
         policyFunction->loadNetwork("networkData.txt");
-        //std::cout << "Current Loss = " << policyFunction->calculateCurrentLoss() << std::endl;
-        avgScores.push_back(runGame(10));
         
-        std::cout << "Iteration " << i << " complete" << std::endl;
-        csvString += i;
-        csvString += "," + std::to_string(runGame(10)) + "\n";
-        
-        //std::cout << "Avg Score iteration " << i << " = " << runGame(100) << std::endl;
-        //std::cout << std::endl;
+        std::cout << "Iteration " << i << " complete. Avg score = " << runGame(10) << " Loss = " << policyFunction->calculateCurrentLoss() << std::endl;
+        std::cout << "Avg probability for chosen action = " << getAverage(probs) << " Standard Devation = " << getStandardDeviaton(probs) << std::endl;
+        trainInputs.clear();
+        trainOutputs.clear();
+        probs.clear();
     }
 }
 
@@ -831,8 +869,9 @@ void NumberCatchingAI::trainAIPPO(int iterations, int timeSteps, int epochs, dou
 int main(){
     NumberCatchingAI n = NumberCatchingAI();
 
+    //n.runGameHuman();
 
-    n.trainAIPPO(1000, 10000, 10, 0.00001);
+    n.trainAIPPO(1000, 1000, 100, 1e-4);
 
     double bestScore = -300;
     double currentScore = -300;
