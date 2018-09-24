@@ -8,6 +8,8 @@
 #include <algorithm>
 #include "NeuralNetwork/NeuralNetwork.h"
 
+
+
 struct NumberRecord{
     int row;
     int column;
@@ -53,10 +55,12 @@ class NumberCatchingAI{
     int getBestAction();
 
     static int getRandomInt(int min, int max);
+    static double randomDouble(double min, double max);
     static double getAverage(std::vector<double> data);
     static double getStandardDeviaton(std::vector<double> data);
     static void printTukeySummary(std::vector<double> data);
     static double positiveCount(std::vector<double> data);
+    
     double runGameHuman();
     
     static std::vector<double> getDeltas(std::vector<double> scores);
@@ -68,7 +72,7 @@ class NumberCatchingAI{
     double probability(std::vector<double> state, int action);
     static double sigmoid(double value);
     double probRatio(std::vector<double> state, int action);
-    static std::vector<double> normalizeVector(std::vector<double> vec);
+    static std::vector<double> applySoftmax(std::vector<double> vec);
     static std::vector<double> calculateProbabilities(std::vector<double> normalized);
 
     double getReward(int timeStep);
