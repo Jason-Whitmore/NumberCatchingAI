@@ -1,3 +1,9 @@
+
+
+extern "C"{
+    #include "genann.h"
+}
+
 #include "NumberCatchingAI.h"
 
 
@@ -26,9 +32,10 @@ NumberCatchingAI::NumberCatchingAI(){
     int value;
     NumberRecord n;
     numbers = std::vector<NumberRecord>(5);
+    int randomInt(int min,int max);
     for(int row = 0; row < 25; row += 5){
-        colLocation = getRandomInt(0, 15);
-        value = getRandomInt(1,9);
+        colLocation = 0 + (rand() % (15 - 0));
+        value = 1 + (rand() % (9 - 1));
         //environment[row][colLocation] = '0' + value;
         n.column = colLocation;
         n.row = row;
@@ -44,14 +51,50 @@ NumberCatchingAI::NumberCatchingAI(){
     std::vector<int> config = std::vector<int>();
     config.push_back(20);
     config.push_back(20);
-    policyFunction = new NeuralNetwork(16,3,config);
-    policyFunction->randomizeVariables(-.1,.1);
-    policyFunction->saveNetwork("networkData.txt");
+
+    genann* policyFunction = genann_init(16,2,20,3);
+    
     discountFactor = 0.9;
 
 
     
 }
+
+std::vector<double> NumberCatchingAI::networkPredict(std::vector<double> inputs){
+    std::vector<double> ret = std::vector<double>();
+
+    const double* out = genann_run(policyFunction, &inputs[0]);
+
+    for(int i = 0; i < 3; i++){
+        ret.push_back(out[i]);
+    }
+
+    return ret;
+}
+
+void NumberCatchingAI::trainNetwork(std::vector<std::vector<double>> inputs, std::vector<std::vector<double>> outputs, uint iterations, double learningRate){
+
+    int currentSample;
+
+    for(uint i = 0; i < iterations; i++){
+
+        currentSample = 0 + (rand() % (inputs.size() - 0));
+
+        genann_train(policyFunction, &inputs[currentSample][0], &outputs[currentSample][0], learningRate);
+    }
+}
+
+double NumberCatchingAI::randomDouble(double min, double max) {
+	double scalar = (double)rand() / RAND_MAX;
+
+	return min + (scalar * (max - min));
+}
+
+int NumberCatchingAI::randomInt(int min, int max) {
+	
+	return min + (rand() % (max - min));
+}
+
 
 void NumberCatchingAI::resetGame(){
     playerLocation = 8;
@@ -67,9 +110,10 @@ void NumberCatchingAI::resetGame(){
     int value;
     NumberRecord n;
     numbers = std::vector<NumberRecord>(5);
+    int randomInt(int,int);
     for(int row = 0; row < 25; row += 5){
-        colLocation = getRandomInt(0, 15);
-        value = getRandomInt(1,9);
+        colLocation = 0 + (rand() % (15 - 0));
+        value = 1 + (rand() % (9 - 1));
         //environment[row][colLocation] = '0' + value;
         n.column = colLocation;
         n.row = row;
@@ -151,8 +195,8 @@ void NumberCatchingAI::performAction(int action){
 
             //insert new number
             n.row = 0;
-            n.column = getRandomInt(0, 15);
-            n.value = getRandomInt(1,9);
+            n.column = randomInt(0, 15);
+            n.value = randomInt(1,9);
             numbers[0] = n;
         }
         
@@ -210,6 +254,11 @@ std::vector<double> NumberCatchingAI::encodeState(){
 
     ret.push_back((double)playerLocation);
     //how the encoding looks like right now: topmost ... bottommost entries, position of player
+
+    //normalize data
+    for(int i = 0; i < ret.size(); i++){
+        ret[i] = ret[i] / 25.0;
+    }
     return ret;
 }
 
@@ -236,18 +285,18 @@ int NumberCatchingAI::getBestAction(){
 
     //feed game state into neural network. Get output vector
 
-    std::vector<double> outputs = policyFunction->runNetwork(gameState);
+    std::vector<double> outputs = networkPredict(gameState);
 
     //calculate the best action based on the current policy
 
 
     //stochastic policy here
     std::vector<double> probabilities = applySoftmax(outputs);
-    double random = NNHelper::randomDouble(0, 1);
+    double random = randomDouble(0, 1);
     for(int i = 0; i < probabilities.size(); i++){
         if(random < probabilities[i]){
             if(probabilities[i] < 1e-3){
-                std::cout << "break here" << std::endl;
+                //std::cout << "break here" << std::endl;
             }
             return i - 1;
         }
@@ -352,19 +401,10 @@ double NumberCatchingAI::getStandardDeviaton(std::vector<double> data){
 }
 
 
-int NumberCatchingAI::getRandomInt(int min, int max){
-
-
-    if(min == max){
-        return min;
-    }
-
-    return min + (rand() % (max - min));
-}
 
 double NumberCatchingAI::runGame(){
     resetGame();
-    policyFunction->loadNetwork("networkData.txt");
+    //policyFunction->loadNetwork("networkData.txt");
 
     int bestAction;
     double bestQ;
@@ -444,7 +484,7 @@ double NumberCatchingAI::getValue(std::vector<double> state){
         setState(state);
         rewards.clear();
         for(int t = 0; t < localHorizon; t++){
-            bestAction = NNHelper::randomInt(-1, 2);
+            bestAction = randomInt(-1, 2);
             rewards.push_back(getReward(encodeState(), bestAction));
             performAction(bestAction);
         }
@@ -467,7 +507,9 @@ double NumberCatchingAI::getAdvantage(int timeStep, std::vector<double> scores, 
 
     double sum = -1 * getValue(states[timeStep]);
 
-    for(int t = timeStep; t < scores.size(); t++){
+    const double localHorizon = 30;
+
+    for(int t = timeStep; t < t + localHorizon && t < scores.size(); t++){
         sum += std::pow(discountFactor, t - timeStep) * scores[t];
     }
 
@@ -535,16 +577,16 @@ double NumberCatchingAI::getReward(std::vector<double> state, int action){
     for(int i = 0; i < 5; i++){
         deltaX = numbers[i].column - playerLocation;
         deltaY = 25 - numbers[i].row;
-        //r += c * ((double)numbers[i].value) / std::sqrt(deltaX * deltaX + deltaY * deltaY);
+        r += c * ((double)numbers[i].value) / std::sqrt(deltaX * deltaX + deltaY * deltaY);
     }
 
     //add bad movements
     if(action == -1 && playerLocation == 0){
-        r -= 10;
+        r -= 1;
     }
 
     if(action == 1 && playerLocation == 14){
-        r -= 10;
+        r -= 1;
     }
 
     //old state
@@ -555,7 +597,7 @@ double NumberCatchingAI::getReward(std::vector<double> state, int action){
 
 double NumberCatchingAI::probability(std::vector<double> state, int action){
 
-    std::vector<double> probabilities = policyFunction->runNetwork(state);
+    std::vector<double> probabilities = networkPredict(state);
 
     probabilities = applySoftmax(probabilities);
 
@@ -584,11 +626,11 @@ std::vector<double> NumberCatchingAI::applySoftmax(std::vector<double> vec){
 
     for(int i = 0; i < ret.size(); i++){
         if(std::isnan(ret[i])){
-            ret[i] = 1;
+            ret[i] = 0.95;
         }
 
-        if(ret[i] < 1e-10){
-            ret[i] = 1e-10;
+        if(ret[i] < 0.05){
+            ret[i] = 0.05;
         }
     }
 
@@ -617,13 +659,13 @@ std::vector<double> NumberCatchingAI::calculateProbabilities(std::vector<double>
 
 double NumberCatchingAI::probRatio(std::vector<double> state, int action){
     //get old prob ratio
-    policyFunction->loadNetwork("oldNetworkData.txt");
-    std::vector<double> networkOutput = policyFunction->runNetwork(state);
+    //policyFunction->loadNetwork("oldNetworkData.txt");
+    std::vector<double> networkOutput = networkPredict(state);
     double oldProb = applySoftmax(networkOutput)[action + 1];
 
     //get new prob ratio
-    policyFunction->loadNetwork("networkData.txt");
-    networkOutput = policyFunction->runNetwork(state);
+    //policyFunction->loadNetwork("networkData.txt");
+    networkOutput = networkPredict(state);
     double newProb = applySoftmax(networkOutput)[action + 1];
 
 
@@ -651,6 +693,7 @@ void NumberCatchingAI::trainAIPPO(int iterations, int timeSteps, int epochs, dou
     int bestAction;
 
     std::vector<double> probs = std::vector<double>();
+    std::vector<double> probR = std::vector<double>();
 
     std::string csvString = "";
 
@@ -662,7 +705,7 @@ void NumberCatchingAI::trainAIPPO(int iterations, int timeSteps, int epochs, dou
 
             //perform action with current policy
             states.push_back(encodeState());
-            nnOutputs.push_back(policyFunction->runNetwork(encodeState()));
+            nnOutputs.push_back(networkPredict(encodeState()));
             bestAction = getBestAction();
             actions.push_back(bestAction);
             probs.push_back(probability(encodeState(), bestAction));
@@ -676,12 +719,13 @@ void NumberCatchingAI::trainAIPPO(int iterations, int timeSteps, int epochs, dou
             advantages.push_back(getAdvantage(t, rewards, states));
         }
         //std::cout << "Num positive advantages = " << NumberCatchingAI::positiveCount(advantages) << std::endl;
-        std::cout << "Avg advantage = " << NumberCatchingAI::getAverage(advantages) << std::endl;
+        //std::cout << "Avg advantage = " << NumberCatchingAI::getAverage(advantages) << std::endl;
         //add training data based on advantages
         
         for(int t = 0; t < advantages.size(); t++){
             trainInputs.push_back(states[t]);
-            surrogate.push_back(advantages[t] * probRatio(states[t], actions[t]));
+            surrogate.push_back(advantages[t] * clip(probRatio(states[t], actions[t]), 0, 10));
+            probR.push_back(probRatio(states[t], actions[t]));
             surrogate.push_back(clip(probRatio(states[t], actions[t]), 1 - epsilon, 1 + epsilon) * advantages[t]);
 
             nnOutputs[t][actions[t] + 1] =  1 * min(surrogate);
@@ -689,23 +733,24 @@ void NumberCatchingAI::trainAIPPO(int iterations, int timeSteps, int epochs, dou
             trainOutputs.push_back(nnOutputs[t]);
         }
         //set training data
-        policyFunction->setTrainingInputs(trainInputs);
-        policyFunction->setTrainingOutputs(trainOutputs);
-        policyFunction->saveNetwork("oldNetworkData.txt");
+        //policyFunction->setTrainingInputs(trainInputs);
+        //policyFunction->setTrainingOutputs(trainOutputs);
+        //policyFunction->saveNetwork("oldNetworkData.txt");
         //now perform SGD optimization
         //policyFunction->trainNetwork(0.05, 10, 100, 1.5, 0.01, -10,10,false);
-        policyFunction->gradientDescent(policyFunction->calculateCurrentLoss() * 0.8, epochs, learningRate);
-        policyFunction->saveNetwork("networkData.txt");
+        //trainNetwork(1e8, 1e-5);
+        //policyFunction->saveNetwork("networkData.txt");
         
         
         nnOutputs.clear();
         states.clear();
         rewards.clear();
         
-        policyFunction->loadNetwork("networkData.txt");
+        //policyFunction->loadNetwork("networkData.txt");
         
-        std::cout << "Iteration " << i << " complete. Avg score = " << runGame(10) << " Loss = " << policyFunction->calculateCurrentLoss() << std::endl;
-        printTukeySummary(advantages);
+        std::cout << "Iteration " << i << " complete. Avg score = " << runGame(10) << std::endl;
+        std::cout << "Prob ratio avg = " << getAverage(probR) << " Std deviation = " << getStandardDeviaton(probR) << std::endl;
+        probR.clear();
         advantages.clear();
         trainInputs.clear();
         trainOutputs.clear();
@@ -716,31 +761,63 @@ void NumberCatchingAI::trainAIPPO(int iterations, int timeSteps, int epochs, dou
 
 
 int main(){
-    //testing softmax
-    std::vector<double> soft = std::vector<double>();
 
+    //testing genann
 
+    genann* t = genann_init(1,2,10,1);
+    
+    double randomDouble;
+    double in[1];
+    double out[1];
+    for(uint i = 0; i < 1e7; i++){
+        randomDouble = NumberCatchingAI::randomDouble(-10,10);
+        in[0] = randomDouble;
+        out[0] = randomDouble * randomDouble;
+        //std::cout << "Training " << in[0] << " " << out[0] << std::endl;
+        genann_train(t, in, out, 1e-4);
+    }
 
-    NumberCatchingAI n = NumberCatchingAI();
+    FILE* squaredData = fopen("squared", "w");
 
-    n.trainAIPPO(1000, 10000, 50, 1e-4);
+    genann_write(t, squaredData);
 
-    double bestScore = -300;
-    double currentScore = -300;
+    fclose(squaredData);
+    t = genann_init(1,2,10,1);
+    for(uint i = 0; i < 1e7; i++){
+        randomDouble = NumberCatchingAI::randomDouble(-10,10);
+        in[0] = randomDouble;
+        out[0] = randomDouble * 2;
+        //std::cout << "Training " << in[0] << " " << out[0] << std::endl;
+        genann_train(t, in, out, 1e-4);
+    }
 
-    for(int i = 0; i < 10000; i++){
-        n.policyFunction->randomizeVariables(-10,10);
-        currentScore = n.runGame(10);
-        if(currentScore > bestScore){
-            bestScore = currentScore;
-            std::cout << "New best score = " << bestScore << " Iteration = " << i << std::endl;
-            
-        }
+    std::cout << "X cubed" << std::endl;
+    for(int i = -10; i < 10; i++){
+        in[0] = i;
+        std::cout << i << "," << genann_run(t, in)[0] << std::endl;
+    }
 
+    std::cout << "Loading x squared...." << std::endl;
+
+    squaredData = fopen("squared", "r");
+    t = genann_read(squaredData);
+
+    for(int i = -10; i < 10; i++){
+        in[0] = i;
+        std::cout << i << "," << genann_run(t, in)[0] << std::endl;
     }
 
 
-    //compiles with: g++ -g -std=c++11 *.h *.cpp NeuralNetwork/*.h NeuralNetwork/*.cpp
+    //NumberCatchingAI n = NumberCatchingAI();
+
+    
+
+    //n.trainAIPPO(1000, 10000, 10, 1e-5);
+
+
+    //compiles with: g++ -c -o cpp.o -std=c++11 NumberCatchingAI.cpp
+    //then with    : gcc -c -o c.o genann.c
+    //finally with: g++ -o prog c.o cpp.o
     //n.trainAI(10000);
 
 }

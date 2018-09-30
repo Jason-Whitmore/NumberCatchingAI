@@ -6,7 +6,6 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <algorithm>
-#include "NeuralNetwork/NeuralNetwork.h"
 
 
 
@@ -26,7 +25,9 @@ class NumberCatchingAI{
     std::vector<NumberRecord> numbers;
 
     
-
+    //wrapper methods for gennan
+    void trainNetwork(std::vector<std::vector<double>> inputs, std::vector<std::vector<double>> outputs, uint iterations, double learningRate);
+    std::vector<double> networkPredict(std::vector<double> inputs);
     
 
     double score;
@@ -54,8 +55,9 @@ class NumberCatchingAI{
 
     int getBestAction();
 
-    static int getRandomInt(int min, int max);
+    static int randomInt(int min, int max);
     static double randomDouble(double min, double max);
+
     static double getAverage(std::vector<double> data);
     static double getStandardDeviaton(std::vector<double> data);
     static void printTukeySummary(std::vector<double> data);
@@ -94,7 +96,7 @@ class NumberCatchingAI{
 
     void trainAIPPO(int iterations, int timeSteps, int epochs, double learningRate);
 
-    NeuralNetwork* policyFunction;
+    genann* policyFunction;
 
     void trainAIExperimental(int iterations, int numGames, double learningRate);
     private:
