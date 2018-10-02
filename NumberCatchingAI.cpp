@@ -72,6 +72,57 @@ std::vector<double> NumberCatchingAI::networkPredict(std::vector<double> inputs)
     return ret;
 }
 
+void NumberCatchingAI::PPOupdate(std::vector<double> state, int action, double advantage, double epsilon, double learningRate){
+    const double delta = 1e-6;
+
+    policyFunction = genann_read(paramsOld);
+
+    double ratioDenom = probability(state, action);
+
+    policyFunction = genann_read(paramsCurrent);
+
+    int numWeights = policyFunction->total_weights;
+
+    //calculate gradient
+    std::vector<double> gradient = std::vector<double>();
+
+    for(int i = 0; i < numWeights; i++){
+        double before = probability(state, action);
+        //nudge weight
+        policyFunction->weight[i] += delta;
+
+        double after = probability(state, action);
+
+        //nudge back
+        policyFunction->weight[i] -= delta;
+
+        //push back gradient
+        gradient.push_back((after - before)/ delta);
+    }
+
+    //determine if we need to demote or promote
+    double currentRatio = probRatio(state, action);
+
+    if(currentRatio > 1 + epsilon || advantage < 0){
+        //demotion, decrease probability
+
+        for(int i = 0; i < numWeights; i++){
+            policyFunction->weight[i] += learningRate * gradient[i];
+        }
+
+    } else {
+        //promotion, increase probability
+
+        for(int i = 0; i < numWeights; i++){
+            policyFunction->weight[i] -= learningRate * gradient[i];
+        }
+
+    }
+    //save to current params
+    genann_write(policyFunction, paramsCurrent);
+
+}
+
 void NumberCatchingAI::trainNetwork(std::vector<std::vector<double>> inputs, std::vector<std::vector<double>> outputs, uint iterations, double learningRate){
 
     int currentSample;
@@ -603,9 +654,6 @@ double NumberCatchingAI::probability(std::vector<double> state, int action){
 
     double r = probabilities[action + 1];
 
-    if(r < 1e-5){
-        return 1e-5;
-    }
 
     return probabilities[action + 1];
 }
@@ -626,14 +674,21 @@ std::vector<double> NumberCatchingAI::applySoftmax(std::vector<double> vec){
 
     for(int i = 0; i < ret.size(); i++){
         if(std::isnan(ret[i])){
-            ret[i] = 0.95;
+            ret[i] = 1;
         }
 
-        if(ret[i] < 0.05){
-            ret[i] = 0.05;
+        if(ret[i] < 1e-8){
+            ret[i] = 1e-8;
         }
     }
 
+    for(int i = 0; i < ret.size(); i++){
+        sum += ret[i];
+    }
+
+    for(int i = 0; i < ret.size(); i++){
+        ret[i] /= sum;
+    }
 
     return ret;
 }

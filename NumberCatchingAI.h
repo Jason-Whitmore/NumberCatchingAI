@@ -26,6 +26,7 @@ class NumberCatchingAI{
 
     
     //wrapper methods for gennan
+    void PPOupdate(std::vector<double> state, int action, double advantage, double epsilon, double learningRate);
     void trainNetwork(std::vector<std::vector<double>> inputs, std::vector<std::vector<double>> outputs, uint iterations, double learningRate);
     std::vector<double> networkPredict(std::vector<double> inputs);
     
@@ -97,6 +98,8 @@ class NumberCatchingAI{
     void trainAIPPO(int iterations, int timeSteps, int epochs, double learningRate);
 
     genann* policyFunction;
+    FILE* paramsOld;
+    FILE* paramsCurrent;
 
     void trainAIExperimental(int iterations, int numGames, double learningRate);
     private:
