@@ -1,4 +1,4 @@
-
+#include "NeuralNetwork.h"
 #include <iostream>
 #include <vector>
 #include <queue>
@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <algorithm>
+
 
 
 
@@ -97,12 +98,9 @@ class NumberCatchingAI{
 
     void trainAIPPO(int iterations, int timeSteps, int epochs, double learningRate);
 
-    genann* policyFunction;
-    FILE* paramsOld;
-    FILE* paramsCurrent;
+    NeuralNetwork policyFunction;
 
     void trainAIExperimental(int iterations, int numGames, double learningRate);
-    private:
     
 
 };

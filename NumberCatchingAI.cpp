@@ -1,13 +1,7 @@
-
-
-extern "C"{
-    #include "genann.h"
-}
-
 #include "NumberCatchingAI.h"
 
-
 NumberCatchingAI::NumberCatchingAI(){
+
     srand(time(0));
     int numCols = 15;
     int numRows = 25;
@@ -48,11 +42,8 @@ NumberCatchingAI::NumberCatchingAI(){
     turnNumber = 0;
     turnLimit = 200;
 
-    std::vector<int> config = std::vector<int>();
-    config.push_back(20);
-    config.push_back(20);
 
-    genann* policyFunction = genann_init(16,2,20,3);
+    policyFunction = NeuralNetwork(16,20,20,3);
     
     discountFactor = 0.9;
 
@@ -61,40 +52,35 @@ NumberCatchingAI::NumberCatchingAI(){
 }
 
 std::vector<double> NumberCatchingAI::networkPredict(std::vector<double> inputs){
-    std::vector<double> ret = std::vector<double>();
-
-    const double* out = genann_run(policyFunction, &inputs[0]);
-
-    for(int i = 0; i < 3; i++){
-        ret.push_back(out[i]);
-    }
-
+    std::vector<double> ret = policyFunction.compute(inputs);
     return ret;
 }
 
 void NumberCatchingAI::PPOupdate(std::vector<double> state, int action, double advantage, double epsilon, double learningRate){
     const double delta = 1e-6;
 
-    policyFunction = genann_read(paramsOld);
+    policyFunction.loadNetwork("paramsOld");
 
     double ratioDenom = probability(state, action);
 
-    policyFunction = genann_read(paramsCurrent);
+    policyFunction.loadNetwork("paramsCurrent");
 
-    int numWeights = policyFunction->total_weights;
+    int numWeights = policyFunction.connections.size();
 
     //calculate gradient
     std::vector<double> gradient = std::vector<double>();
+    double before;
+    double after;
 
     for(int i = 0; i < numWeights; i++){
-        double before = probability(state, action);
+        before = probability(state, action);
         //nudge weight
-        policyFunction->weight[i] += delta;
+        policyFunction.connections[i]->weight += delta;
 
-        double after = probability(state, action);
+        after = probability(state, action);
 
         //nudge back
-        policyFunction->weight[i] -= delta;
+        policyFunction.connections[i]->weight -= delta;
 
         //push back gradient
         gradient.push_back((after - before)/ delta);
@@ -103,36 +89,30 @@ void NumberCatchingAI::PPOupdate(std::vector<double> state, int action, double a
     //determine if we need to demote or promote
     double currentRatio = probRatio(state, action);
 
-    if(currentRatio > 1 + epsilon || advantage < 0){
-        //demotion, decrease probability
+    
 
+    if(currentRatio > 1 + epsilon || currentRatio < 1 - epsilon){
+        return;
+    }
+
+    if(advantage < 0){
+        //demotion, decrease probability
+        //std::cout << "Demoting policy" << std::endl;
         for(int i = 0; i < numWeights; i++){
-            policyFunction->weight[i] += learningRate * gradient[i];
+            policyFunction.connections[i]->weight += learningRate * gradient[i];
         }
 
-    } else {
+    } else if(advantage > 0) {
         //promotion, increase probability
-
+        //std::cout << "promoting policy" << std::endl;
         for(int i = 0; i < numWeights; i++){
-            policyFunction->weight[i] -= learningRate * gradient[i];
+            policyFunction.connections[i]->weight -= learningRate * gradient[i];
         }
 
     }
     //save to current params
-    genann_write(policyFunction, paramsCurrent);
+    policyFunction.saveNetwork("paramsCurrent");
 
-}
-
-void NumberCatchingAI::trainNetwork(std::vector<std::vector<double>> inputs, std::vector<std::vector<double>> outputs, uint iterations, double learningRate){
-
-    int currentSample;
-
-    for(uint i = 0; i < iterations; i++){
-
-        currentSample = 0 + (rand() % (inputs.size() - 0));
-
-        genann_train(policyFunction, &inputs[currentSample][0], &outputs[currentSample][0], learningRate);
-    }
 }
 
 double NumberCatchingAI::randomDouble(double min, double max) {
@@ -307,9 +287,6 @@ std::vector<double> NumberCatchingAI::encodeState(){
     //how the encoding looks like right now: topmost ... bottommost entries, position of player
 
     //normalize data
-    for(int i = 0; i < ret.size(); i++){
-        ret[i] = ret[i] / 25.0;
-    }
     return ret;
 }
 
@@ -456,6 +433,7 @@ double NumberCatchingAI::getStandardDeviaton(std::vector<double> data){
 double NumberCatchingAI::runGame(){
     resetGame();
     //policyFunction->loadNetwork("networkData.txt");
+    policyFunction.loadNetwork("paramsOld");
 
     int bestAction;
     double bestQ;
@@ -681,13 +659,13 @@ std::vector<double> NumberCatchingAI::applySoftmax(std::vector<double> vec){
             ret[i] = 1e-8;
         }
     }
-
+    sum = 0;
     for(int i = 0; i < ret.size(); i++){
         sum += ret[i];
     }
 
     for(int i = 0; i < ret.size(); i++){
-        ret[i] /= sum;
+        //ret[i] /= sum;
     }
 
     return ret;
@@ -714,14 +692,14 @@ std::vector<double> NumberCatchingAI::calculateProbabilities(std::vector<double>
 
 double NumberCatchingAI::probRatio(std::vector<double> state, int action){
     //get old prob ratio
-    //policyFunction->loadNetwork("oldNetworkData.txt");
+    policyFunction.loadNetwork("paramsOld");
     std::vector<double> networkOutput = networkPredict(state);
-    double oldProb = applySoftmax(networkOutput)[action + 1];
+    double oldProb = probability(state, action);
 
-    //get new prob ratio
-    //policyFunction->loadNetwork("networkData.txt");
+    //get current prob ratio
+    policyFunction.loadNetwork("paramsCurrent");
     networkOutput = networkPredict(state);
-    double newProb = applySoftmax(networkOutput)[action + 1];
+    double newProb = probability(state, action);
 
 
     //std::cout << "Prob ratio = " << newProb / oldProb << std::endl;
@@ -729,6 +707,9 @@ double NumberCatchingAI::probRatio(std::vector<double> state, int action){
 }
 
 void NumberCatchingAI::trainAIPPO(int iterations, int timeSteps, int epochs, double learningRate){
+
+    policyFunction.saveNetwork("paramsCurrent");
+    policyFunction.saveNetwork("paramsOld");
     
     std::vector<double> scores = std::vector<double>();
     std::vector<std::vector<double>> states = std::vector<std::vector<double>>();
@@ -737,7 +718,7 @@ void NumberCatchingAI::trainAIPPO(int iterations, int timeSteps, int epochs, dou
     std::vector<std::vector<double>> nnOutputs = std::vector<std::vector<double>>();
     std::vector<double> advantages = std::vector<double>();
     std::vector<int> ordering = std::vector<int>();
-    const double epsilon = 0.2;
+    const double epsilon = 0.1;
 
     std::vector<std::vector<double>> trainInputs = std::vector<std::vector<double>>();
     std::vector<std::vector<double>> trainOutputs = std::vector<std::vector<double>>();
@@ -781,35 +762,45 @@ void NumberCatchingAI::trainAIPPO(int iterations, int timeSteps, int epochs, dou
             trainInputs.push_back(states[t]);
             surrogate.push_back(advantages[t] * clip(probRatio(states[t], actions[t]), 0, 10));
             probR.push_back(probRatio(states[t], actions[t]));
+            probs.push_back(probability(states[t], actions[t]));
             surrogate.push_back(clip(probRatio(states[t], actions[t]), 1 - epsilon, 1 + epsilon) * advantages[t]);
 
             nnOutputs[t][actions[t] + 1] =  1 * min(surrogate);
             surrogate.clear();
             trainOutputs.push_back(nnOutputs[t]);
         }
-        //set training data
-        //policyFunction->setTrainingInputs(trainInputs);
-        //policyFunction->setTrainingOutputs(trainOutputs);
-        //policyFunction->saveNetwork("oldNetworkData.txt");
-        //now perform SGD optimization
-        //policyFunction->trainNetwork(0.05, 10, 100, 1.5, 0.01, -10,10,false);
-        //trainNetwork(1e8, 1e-5);
-        //policyFunction->saveNetwork("networkData.txt");
+
         
         
         nnOutputs.clear();
-        states.clear();
+        //states.clear();
         rewards.clear();
         
         //policyFunction->loadNetwork("networkData.txt");
+
+        //perform PPO updates
         
+        int randomDataIndex;
+
+        int iterations = 500 * getAverage(advantages) * getAverage(advantages);
+        for(int t = 0; t < iterations; t++){
+            randomDataIndex = rand() % states.size();
+
+            PPOupdate(states[randomDataIndex], actions[randomDataIndex], advantages[randomDataIndex], epsilon, 1e-4);
+        }
+
+        policyFunction.saveNetwork("paramsOld");
         std::cout << "Iteration " << i << " complete. Avg score = " << runGame(10) << std::endl;
-        std::cout << "Prob ratio avg = " << getAverage(probR) << " Std deviation = " << getStandardDeviaton(probR) << std::endl;
+        std::cout << "Average prob = " << getAverage(probs) << " Avg advantage = " << getAverage(advantages) << std::endl;
         probR.clear();
         advantages.clear();
         trainInputs.clear();
         trainOutputs.clear();
         probs.clear();
+        states.clear();
+
+        //set old policy
+        
     }
 }
 
@@ -817,57 +808,13 @@ void NumberCatchingAI::trainAIPPO(int iterations, int timeSteps, int epochs, dou
 
 int main(){
 
-    //testing genann
-
-    genann* t = genann_init(1,2,10,1);
-    
-    double randomDouble;
-    double in[1];
-    double out[1];
-    for(uint i = 0; i < 1e7; i++){
-        randomDouble = NumberCatchingAI::randomDouble(-10,10);
-        in[0] = randomDouble;
-        out[0] = randomDouble * randomDouble;
-        //std::cout << "Training " << in[0] << " " << out[0] << std::endl;
-        genann_train(t, in, out, 1e-4);
-    }
-
-    FILE* squaredData = fopen("squared", "w");
-
-    genann_write(t, squaredData);
-
-    fclose(squaredData);
-    t = genann_init(1,2,10,1);
-    for(uint i = 0; i < 1e7; i++){
-        randomDouble = NumberCatchingAI::randomDouble(-10,10);
-        in[0] = randomDouble;
-        out[0] = randomDouble * 2;
-        //std::cout << "Training " << in[0] << " " << out[0] << std::endl;
-        genann_train(t, in, out, 1e-4);
-    }
-
-    std::cout << "X cubed" << std::endl;
-    for(int i = -10; i < 10; i++){
-        in[0] = i;
-        std::cout << i << "," << genann_run(t, in)[0] << std::endl;
-    }
-
-    std::cout << "Loading x squared...." << std::endl;
-
-    squaredData = fopen("squared", "r");
-    t = genann_read(squaredData);
-
-    for(int i = -10; i < 10; i++){
-        in[0] = i;
-        std::cout << i << "," << genann_run(t, in)[0] << std::endl;
-    }
 
 
-    //NumberCatchingAI n = NumberCatchingAI();
+    NumberCatchingAI n = NumberCatchingAI();
 
     
 
-    //n.trainAIPPO(1000, 10000, 10, 1e-5);
+    n.trainAIPPO(10000, 1000, 10, 1e-5);
 
 
     //compiles with: g++ -c -o cpp.o -std=c++11 NumberCatchingAI.cpp
