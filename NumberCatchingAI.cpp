@@ -43,7 +43,7 @@ NumberCatchingAI::NumberCatchingAI(){
     turnLimit = 200;
 
 
-    policyFunction = NeuralNetwork(16,20,20,3);
+    policyFunction = NeuralNetwork(16,64,64,3);
     
     discountFactor = 0.9;
 
@@ -782,7 +782,7 @@ void NumberCatchingAI::trainAIPPO(int iterations, int timeSteps, int epochs, dou
         
         int randomDataIndex;
 
-        int iterations = 500 * getAverage(advantages) * getAverage(advantages);
+        int iterations = 2000;
         for(int t = 0; t < iterations; t++){
             randomDataIndex = rand() % states.size();
 
@@ -814,7 +814,7 @@ int main(){
 
     
 
-    n.trainAIPPO(10000, 1000, 10, 1e-5);
+    n.trainAIPPO(10000, 200, 10, 1e-5);
 
 
     //compiles with: g++ -c -o cpp.o -std=c++11 NumberCatchingAI.cpp
