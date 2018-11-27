@@ -5,7 +5,7 @@
 #include <fstream>
 
 
-enum ActivationFunction{Tanh, Sigmoid, RELU, LeakyRELU};
+enum ActivationFunction{Tanh, Sigmoid, RELU, LeakyRELU, Linear};
 
 struct Connection;
 
@@ -69,5 +69,6 @@ class NeuralNetwork {
     void loadNetwork(std::string);
     bool contains(std::string, std::string);
     std::vector<std::string> split(std::string, std::string);
+    void randomizeNetwork();
 
 };

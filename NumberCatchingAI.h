@@ -6,7 +6,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <algorithm>
-
+#include <tuple>
 
 
 
@@ -43,8 +43,7 @@ class NumberCatchingAI{
 
     void resetGame();
 
-    double runGame();
-    double runGame(int numGames);
+    std::vector<double> runGame();
 
     void performAction(int action);
 
@@ -62,6 +61,7 @@ class NumberCatchingAI{
 
     static double getAverage(std::vector<double> data);
     static double getStandardDeviaton(std::vector<double> data);
+    static double getMedian(std::vector<double> data);
     static void printTukeySummary(std::vector<double> data);
     static double positiveCount(std::vector<double> data);
     
@@ -100,7 +100,15 @@ class NumberCatchingAI{
 
     NeuralNetwork policyFunction;
 
+    NeuralNetwork valueFunction;
+
+
+
+
+
     void trainAIExperimental(int iterations, int numGames, double learningRate);
+
+    void watchGame();
     
 
 };
