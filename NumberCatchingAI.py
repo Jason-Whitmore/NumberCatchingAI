@@ -3,6 +3,7 @@ import random
 import sys
 import tensorflow as tf
 from tensorflow import keras
+import numpy as np
 
 class NumberData:
     def __init__(self, value, x, y):
@@ -25,26 +26,38 @@ class NumberCatchingAI:
         self.numCols = 15
         self.numRows = 25
 
+        self.discountFactor = 0.9
+
+        for i in range(5):
+            self.numberInfo.append(NumberData(random.randint(1,9), random.randint(0,14), i * 5))
+
+
+
+
+        exInput = tf.convert_to_tensor(self.getState())
+
         self.policyFunction = keras.Sequential([
-            keras.layers.Dense(64, input_shape=(16,), activation=tf.nn.tanh),
+            keras.layers.Dense(64, input_shape=exInput.shape, activation=tf.nn.tanh),
             keras.layers.Dense(64, activation=tf.nn.tanh),
             keras.layers.Dense(3, activation=tf.nn.softmax)
         ])
+        #self.policyFunction.summary()
 
-        self.policyFunction.compile(loss=keras.losses.mean_absolute_error,optimizer=keras.optimizers.SGD)
+        self.policyFunction.compile(loss='mse',optimizer='sgd')
+
+
 
 
         self.valueFunction = keras.Sequential([
-            keras.layers.Dense(64, input_shape=(16,), activation=tf.nn.tanh),
+            keras.layers.Dense(64, input_dim=16, activation=tf.nn.tanh),
             keras.layers.Dense(64, activation=tf.nn.tanh),
             keras.layers.Dense(1)
         ])
 
-        self.valueFunction.compile(loss=keras.losses.mean_absolute_error, optimizer=keras.optimizers.SGD)
+        self.valueFunction.compile(loss='mse', optimizer='sgd')
 
 
-        for i in range(5):
-            self.numberInfo.append(NumberData(random.randint(1,9), random.randint(0,14), i * 5))
+
 
     
     def getState(self):
@@ -56,6 +69,31 @@ class NumberCatchingAI:
         ret.append(self.playerLocation)
         return ret
 
+    def getBestAction(self):
+        state = self.getState()
+        p = []
+        for i in range(16):
+            p.append(1)
+
+        inp = tf.convert_to_tensor(p)
+
+        inp = tf.stack([inp,tf.convert_to_tensor(state)])
+
+        #sess = tf.Session()
+        #print state
+
+        out = self.policyFunction.predict(inp, steps=1)
+        
+        n = random.random()
+        index = 0
+        for i in np.nditer(out):
+            if(n < i):
+                return index - 1
+            else:
+                n -= i
+
+            index += 1
+        return -1
 
 
     def drawGame(self):
@@ -81,6 +119,7 @@ class NumberCatchingAI:
         
         print "Score: " + str(self.score)
         print "Turn " + str(self.currentTurn) + "/" + str(self.maxTurns)
+        print "Best action = " + str(self.getBestAction())
 
 
 
@@ -192,13 +231,33 @@ class NumberCatchingAI:
     def trainAI(self, iterations, timesteps, learningRate):
         rewards = []
         actions = []
-        state = []
+        states = []
+        values = []
 
         #for each iteration
-        #for iter in range(iterations):
+        for iter in range(iterations):
             #run for timesteps
-            #for t in range(timesteps):
+            for t in range(timesteps):
+                #run old policy
+                states.append(self.getState())
+                actions.append(self.getBestAction())
+                rewards.append(self.rewardFunction(states[t], actions[t]))
+                self.performAction(actions[t])
+            
+            #data collected, now to be analyzed
+            #get values
+            for t in range(timesteps):
+                values.append(self.cumulativeReward(t, rewards))
 
+            
+
+    def cumulativeReward(self,timestep, rewards):
+        ret = 0
+
+        for i in range(timestep, len(rewards)):
+            ret += (self.discountFactor ** (i - timestep)) * rewards[i]
+        
+        return ret
 
 
 
