@@ -27,6 +27,8 @@ class NumberCatchingAI:
         self.numRows = 25
 
         self.discountFactor = 0.9
+        
+        self.epsilon = 0.1
 
         for i in range(5):
             self.numberInfo.append(NumberData(random.randint(1,9), random.randint(0,14), i * 5))
@@ -242,11 +244,46 @@ class NumberCatchingAI:
 
         return probNew / probOld
 
+
+
+    def trainPPO(self, state, action, reward):
+        ratio = self.probRatio(state, action)
+
+        #how well did the policy work compared to before? (advantage)
+        advantage = reward - self.valueFunction.predict(np.array(state))[0]
+
+
+        if(ratio > 1 + self.epsilon):
+            #always demote action
+            obj = [1,1,1]
+            obj[action + 1] = 0
+
+        elif(ratio < 1 - self.epsilon):
+            #always promote action
+            obj = [0,0,0]
+            obj[action + 1] = 1
+
+        elif(advantage > 0):
+            #better results than before -> promote
+            obj = [0,0,0]
+            obj[action + 1] = 1
+
+        else:
+            #worse results than before -> demote
+            obj = [1,1,1]
+            obj[action + 1] = 0
+
+        #train with new objective
+        self.policyFunction.fit(np.array(state), np.array(obj), epochs=1)
+
+
+
+
     def trainAI(self, iterations, timesteps, learningRate):
         rewards = []
         actions = []
-        states = []
-        values = []
+        states = [[]]
+        values = [[]]
 
         #for each iteration
         for iter in range(iterations):
@@ -262,6 +299,15 @@ class NumberCatchingAI:
             #get values
             for t in range(timesteps):
                 values.append(self.cumulativeReward(t, rewards))
+            
+            #train the policy function
+            for i in range(timesteps * 4):
+                rand = random.randint(0, len(actions) - 1)
+                self.trainPPO(states[rand], actions[rand], values[rand][0])
+            
+            #train the value function
+            self.valueFunction.fit(np.array(states), np.array(values), epochs=4)
+            
 
             
 
