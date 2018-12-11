@@ -228,6 +228,20 @@ class NumberCatchingAI:
 
         self.currentTurn += 1
 
+
+    def probRatio(self, state, action):
+        #load old
+        self.policyFunction = keras.models.load_model("oldPolicy")
+        out = self.policyFunction.predict(np.array(state))
+        probOld = out[action + 1]
+
+        #load current
+        self.policyFunction = keras.models.load_model("currentPolicy")
+        out = self.policyFunction.predict(np.array(state))
+        probNew = out[action + 1]
+
+        return probNew / probOld
+
     def trainAI(self, iterations, timesteps, learningRate):
         rewards = []
         actions = []
@@ -251,7 +265,7 @@ class NumberCatchingAI:
 
             
 
-    def cumulativeReward(self,timestep, rewards):
+    def cumulativeReward(self, timestep, rewards):
         ret = 0
 
         for i in range(timestep, len(rewards)):
