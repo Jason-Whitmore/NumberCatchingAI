@@ -7,6 +7,7 @@ NeuralNetwork::NeuralNetwork(){
 }
 
 NeuralNetwork::NeuralNetwork(int numInputs, int layer1, int layer2, int numOutputs){
+    srand(time(NULL));
     numWeights = 0;
     numNodes = 0;
     //create layers
@@ -100,6 +101,7 @@ NeuralNetwork::NeuralNetwork(int numInputs, int layer1, int layer2, int numOutpu
         for(int n = 0; n < nodes[layer].size(); n++){
             numWeights++;
             c = new Connection();
+            c->isBias = true;
             c->weight = randomDouble(-1,1);
             c->start = biasNode;
             c->end = nodes[layer][n];
@@ -111,9 +113,11 @@ NeuralNetwork::NeuralNetwork(int numInputs, int layer1, int layer2, int numOutpu
         }
     }
 
+    std::default_random_engine gen;
+    std::normal_distribution<double> distribution(0,1);
 
     for(int i = 0; i < connections.size(); i++){
-        connections[i]->weight = randomDouble(-0.01,0.01);
+        connections[i]->weight = randomDouble(-1,1);
     }
 }
 
@@ -164,7 +168,7 @@ double NeuralNetwork::getNodeOutput(Node* n){
         if(dotProduct > 0){
             return dotProduct;
         } else {
-            return dotProduct * 0.01;
+            return dotProduct * 0.1;
         }
     } else if (function == ActivationFunction::Sigmoid){
         return 1.0 / (1 + std::exp(-dotProduct));
@@ -176,7 +180,7 @@ double NeuralNetwork::getNodeOutput(Node* n){
 }
 
 double NeuralNetwork::randomDouble(double min, double max){
-    double scalar = (double)rand() / RAND_MAX;
+    double scalar = ((double)rand()) / RAND_MAX;
     return min + (scalar * (max - min));
 }
 
@@ -184,20 +188,9 @@ double NeuralNetwork::randomDouble(double min, double max){
 double NeuralNetwork::calculateAverageLoss(){
     double result = 0;
 
-    std::vector<double> input;
-    std::vector<double> output;
-    std::vector<double> actualOutput;
     //loop through the training data
     for(int dp = 0; dp < trainingInputs.size(); dp++){
-        input = trainingInputs[dp];
-        output = trainingOutputs[dp];
-
-        actualOutput = compute(input);
-
-        //loop through each output feature
-        for(int i = 0; i < actualOutput.size(); i++){
-            result += std::pow(std::abs(actualOutput[i] - output[i]),2) * (1.0/actualOutput.size());
-        }
+        result += calculateLoss(dp);
     }
     return result / trainingInputs.size();
 }
@@ -209,7 +202,7 @@ double NeuralNetwork::calculateLoss(int sampleIndex){
     std::vector<double> actualOutput = compute(input);
 
     for(int i = 0; i < output.size(); i++){
-        result += std::pow(actualOutput[i] - output[i], 2);
+        result += std::pow(std::abs(actualOutput[i] - output[i]),2) * (1.0/actualOutput.size());
     }
     return result / output.size();
 }
@@ -234,8 +227,17 @@ std::vector<double> NeuralNetwork::getGradient(int sampleIndex){
             double lossAfter = calculateLoss(sampleIndex);
             con->weight -= delta;
 
-            grad[con->id] = (lossAfter - lossBefore) / delta;
             con->loss = (lossAfter - lossBefore) / delta;
+
+            if(con->loss > 10){
+                    con->loss = 10;
+            }
+            if(con->loss < -10){
+                    con->loss = -10;
+            }
+
+            grad[con->id] = con->loss;
+            
         }
     }
 
@@ -244,14 +246,43 @@ std::vector<double> NeuralNetwork::getGradient(int sampleIndex){
     for(int layer = nodes.size() - 2; layer > 0; layer--){
         for(int n = 0; n < nodes[layer].size(); n++){
             for(int in = 0; in < nodes[layer][n]->inputs.size(); in++){
+                //connection is either a bias or a weight
+                if(nodes[layer][n]->inputs[in]->isBias){
+                    //bias
+                } else {
+                    //weight
+                }
                 con = nodes[layer][n]->inputs[in];
                 con->loss = con->start->value * getDerivative(nodes[layer][n]) * sumNodeOutputLoss(nodes[layer][n]);
+                if(con->loss > 10){
+                    con->loss = 10;
+                }
+                if(con->loss < -10){
+                    con->loss = -10;
+                }
                 grad[con->id] = con->loss;
             }
         }
     }
 
     //finally, return the gradient
+    return grad;
+}
+
+
+std::vector<double> NeuralNetwork::getGradientApprox(int sampleNumber){
+    const double delta = 1e-6;
+    std::vector<double> grad = std::vector<double>();
+
+    for(int w = 0; w < connections.size(); w++){
+        double oldLoss = calculateLoss(sampleNumber);
+        connections[w]->weight += delta;
+        double newLoss = calculateLoss(sampleNumber);
+        connections[w]->weight -= delta;
+
+        grad.push_back((newLoss - oldLoss) / delta);
+    }
+
     return grad;
 }
 
@@ -294,6 +325,10 @@ double NeuralNetwork::getDerivative(double x, ActivationFunction f){
 void NeuralNetwork::stochasticGradientDescent(double targetLoss, uint epochs, double learningRate){
     std::vector<double> gradient;
     std::vector<int> ordering;
+
+    const double lambda = 0.04;
+
+    double effectiveLearningRate = learningRate;
     uint currentSample = 0;
     for(int iter = 0; iter < epochs; iter++){
         if(iter % trainingInputs.size() == 0){
@@ -306,23 +341,69 @@ void NeuralNetwork::stochasticGradientDescent(double targetLoss, uint epochs, do
         Connection* c;
         for(int i = 0; i < gradient.size(); i++){
             c = connections[i];
-            c->weight = c->weight - (learningRate * gradient[i]);
+            c->weight = c->weight - (learningRate * gradient[i]) - learningRate * lambda * c->weight;
         }
 
 
-        if(iter % 1000 == 0 && calculateAverageLoss() < targetLoss){
+        if(iter % trainingInputs.size() == 0 && calculateAverageLoss() < targetLoss){
             return;
         }
-        if(iter % 1000 == 0){
+        if(iter % trainingInputs.size() == 0){
             std::cout << "Loss = " << calculateAverageLoss() << std::endl;
+            //system("clear");
         }
         currentSample++;
+    }
+}
 
+void NeuralNetwork::jasonTrain(double targetLoss, uint iterations, double learningRate){
+    std::vector<double> gradient;
+    std::vector<int> ordering;
+
+    const double lambda = 0.01;
+
+    double effectiveLearningRate = learningRate;
+
+    double bestLoss = calculateAverageLoss();
+    std::vector<double> bestParams = getWeights();
+    uint currentSample = 0;
+    for(uint iter = 0; iter < iterations; iter++){
+        if(iter % trainingInputs.size() == 0){
+            ordering = randomOrder(trainingInputs.size());
+            currentSample = 0;
+        }
+
+        gradient = getGradient(ordering[currentSample]);
+        //apply learning rate to gradient
+        Connection* c;
+        for(int i = 0; i < gradient.size(); i++){
+            c = connections[i];
+            c->weight = c->weight - (learningRate * gradient[i]) - learningRate * lambda * c->weight;
+        }
+
+
+        if(iter % trainingInputs.size() == 0 && calculateAverageLoss() < targetLoss){
+            return;
+        }
+        if(iter % trainingInputs.size() == 0){
+            double currentLoss = calculateAverageLoss();
+            if(currentLoss < bestLoss){
+                bestLoss = currentLoss;
+                bestParams = getWeights();
+            }
+            //std::cout << "Loss = " << currentLoss << std::endl;
+
+        }
+        currentSample++;
+    }
+    //std::cout << "Best loss = " << bestLoss << std::endl;
+    for(int w = 0; w < connections.size(); w++){
+        connections[w]->weight = bestParams[w];
     }
 }
 
 void NeuralNetwork::stochasticGradientDescentApprox(double targetLoss, uint epochs, double learningRate){
-    const double delta = 1e-6;
+    const double delta = 1e-4;
     int currentEpochs = 0;
     std::vector<double> outputs;
     std::vector<double> actualOutputs;
@@ -362,11 +443,11 @@ void NeuralNetwork::stochasticGradientDescentApprox(double targetLoss, uint epoc
                 gradient[w] = 0;
             }
 
-            if(gradient[w] > 1000){
-                gradient[w] = 1000;
+            if(gradient[w] > 10){
+                gradient[w] = 10;
             }
-            if(gradient[w] < -1000){
-                gradient[w] = -1000;
+            if(gradient[w] < -10){
+                gradient[w] = -10;
             }
         }
 
@@ -378,11 +459,11 @@ void NeuralNetwork::stochasticGradientDescentApprox(double targetLoss, uint epoc
             c->weight -= lr * gradient[w];
         }
         
-        if(currentEpochs % 1000 == 0 && calculateAverageLoss() < targetLoss){
+        if(currentEpochs % 10000 == 0 && calculateAverageLoss() < targetLoss){
             break;
         }
 
-        if(currentEpochs % 1000 == 0){
+        if(currentEpochs % 10000 == 0){
             std::cout << "Avg loss = " << calculateAverageLoss() << std::endl;
         }
         
@@ -414,13 +495,10 @@ void NeuralNetwork::setActivationFunction(int ID, ActivationFunction f){
 std::vector<double> NeuralNetwork::getWeights(){
     std::vector<double> r = std::vector<double>();
 
-    for(int layer = 1; layer < nodes.size(); layer++){
-        for(int node = 0; node < nodes[layer].size() - 1; node++){
-            for(int connection = 0; connection < nodes[layer][node]->inputs.size(); connection++){
-                r.push_back(nodes[layer][node]->inputs[connection]->weight);
-            }
-        }
+    for(int w = 0; w < connections.size(); w++){
+        r.push_back(connections[w]->weight);
     }
+
     return r;
 }
 
@@ -509,10 +587,32 @@ void NeuralNetwork::loadNetwork(std::string fileName){
     file.close();
 }
 
-void NeuralNetwork::randomizeNetwork(){
+void NeuralNetwork::randomizeNetwork(double min, double max){
     for(int i = 0; i < connections.size(); i++){
-        connections[i]->weight = randomDouble(-1,1);
+        connections[i]->weight = randomDouble(min,max);
     }
 }
 
+/**
+int main(){
+    std::vector<std::vector<double>> inputs = std::vector<std::vector<double>>();
+    std::vector<std::vector<double>> outputs = std::vector<std::vector<double>>();
 
+    for(double i = 0; i < 10; i+=.05){
+        inputs.push_back(std::vector<double>(1, i / 10.0));
+        outputs.push_back(std::vector<double>(1, i * i * (1/100.0)));
+    }
+
+    NeuralNetwork n = NeuralNetwork(1,16,16,1);
+
+    n.trainingInputs = inputs;
+    n.trainingOutputs = outputs;
+    n.jasonTrain(0.0001, 1e6, 1e-4);
+
+
+    for(double i = 0; i < 10; i++){
+        std::cout << "(" << i << ", " << n.compute(std::vector<double>(1, i / 10.0)).at(0) * 100 << ")" << std::endl;
+    }
+}
+
+ **/

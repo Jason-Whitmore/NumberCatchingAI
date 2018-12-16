@@ -1,9 +1,20 @@
+import os
+os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
+
+from keras import backend as k
+from keras.backend import clear_session
 from collections import deque
 import random
 import sys
 import tensorflow as tf
 from tensorflow import keras
 import numpy as np
+import time
+import gc
+
+#import keras.backend.tensorflow_backend
+#from keras.backend import clear_session
+
 
 class NumberData:
     def __init__(self, value, x, y):
@@ -45,7 +56,7 @@ class NumberCatchingAI:
         ])
         #self.policyFunction.summary()
 
-        self.policyFunction.compile(loss='mse',optimizer='sgd')
+        self.policyFunction.compile(loss='mse',optimizer=keras.optimizers.SGD(lr=1e-5, clipnorm=10))
 
 
 
@@ -56,7 +67,10 @@ class NumberCatchingAI:
             keras.layers.Dense(1)
         ])
 
-        self.valueFunction.compile(loss='mse', optimizer='sgd')
+        self.valueFunction.compile(loss='mse', optimizer=keras.optimizers.SGD(lr=1e-4, clipnorm=10))
+
+        self.policyFunction.save("currentPolicy.h5")
+        self.policyFunction.save("oldPolicy.h5")
 
 
 
@@ -72,6 +86,19 @@ class NumberCatchingAI:
         return ret
 
     def getBestAction(self):
+        start = time.time()
+        
+        #self.policyFunction.load_weights("oldPolicy.h5")
+        keras.backend.clear_session()
+        self.policyFunction = keras.models.load_model("oldPolicy.h5")
+        
+
+        #keras.backend.clear_session()
+        #if keras.backend.sess:
+            #tf.reset_default_graph()
+            #keras.backend._SESSION.close()
+            #keras.backend._SESSION = None
+        
         state = self.getState()
         p = []
         for i in range(16):
@@ -81,12 +108,10 @@ class NumberCatchingAI:
 
         inp = tf.stack([inp,tf.convert_to_tensor(state)])
 
-        #sess = tf.Session()
-        #print state
-
         out = self.policyFunction.predict(inp, steps=1)
         
         n = random.random()
+        #print "Time for one prediction = " + str(time.time() - start)
         index = 0
         for i in np.nditer(out):
             if(n < i):
@@ -96,6 +121,18 @@ class NumberCatchingAI:
 
             index += 1
         return -1
+    
+
+    def listToTensor(self, list):
+        p = []
+        for i in range(len(list)):
+            p.append(1)
+        
+        r = tf.convert_to_tensor(p)
+
+        r = tf.stack([r, tf.convert_to_tensor(list)])
+
+        return r
 
 
     def drawGame(self):
@@ -129,7 +166,7 @@ class NumberCatchingAI:
         # number of numbers in the queue
         self.numberInfo.clear()
         
-
+        #print "length = " + str(len(state))
         for i in range(0, 15, 3):
             data = NumberData(state[i], state[i + 1], state[i + 2])
             self.numberInfo.append(data)
@@ -209,6 +246,8 @@ class NumberCatchingAI:
 
 
     def performAction(self, action):
+
+        self.score += self.rewardFunction(self.getState(), action)
         #move player
         if(self.playerLocation == 14 and action == 1):
             self.playerLocation = 14
@@ -232,15 +271,22 @@ class NumberCatchingAI:
 
 
     def probRatio(self, state, action):
+        #keras.backend.clear_session()
         #load old
-        self.policyFunction = keras.models.load_model("oldPolicy")
-        out = self.policyFunction.predict(np.array(state))
-        probOld = out[action + 1]
+        self.policyFunction = keras.models.load_model("oldPolicy.h5")
 
+        stateTensor = self.listToTensor(state)
+            
+
+        out = self.policyFunction.predict(stateTensor, steps=1)
+        #print tf.shape(out)
+        probOld = out[1][action + 1]
+
+        #keras.backend.clear_session()
         #load current
-        self.policyFunction = keras.models.load_model("currentPolicy")
-        out = self.policyFunction.predict(np.array(state))
-        probNew = out[action + 1]
+        self.policyFunction = keras.models.load_model("currentPolicy.h5")
+        out = self.policyFunction.predict(stateTensor, steps=1)
+        probNew = out[1][action + 1]
 
         return probNew / probOld
 
@@ -250,8 +296,7 @@ class NumberCatchingAI:
         ratio = self.probRatio(state, action)
 
         #how well did the policy work compared to before? (advantage)
-        advantage = reward - self.valueFunction.predict(np.array(state))[0]
-
+        advantage = reward - self.valueFunction.predict(self.listToTensor(state), steps=1)[0][0]
 
         if(ratio > 1 + self.epsilon):
             #always demote action
@@ -274,20 +319,27 @@ class NumberCatchingAI:
             obj[action + 1] = 0
 
         #train with new objective
-        self.policyFunction.fit(np.array(state), np.array(obj), epochs=1)
+        stateTensor = self.listToTensor(state)
+        probTensor = self.listToTensor(obj)
+        self.policyFunction.fit(stateTensor, probTensor, epochs=1, steps_per_epoch=1, verbose=0)
+        self.policyFunction.save("currentPolicy.h5")
 
 
 
 
-    def trainAI(self, iterations, timesteps, learningRate):
-        rewards = []
-        actions = []
-        states = [[]]
-        values = [[]]
+    def trainAI(self, iterations, timesteps):
+        
+        
 
         #for each iteration
         for iter in range(iterations):
+            startTime = time.time()
+            rewards = []
+            actions = []
+            states = [[0 for x in range(16)] for y in range(1)]
+            values = [[0 for x in range(1)] for y in range(1)]
             #run for timesteps
+            print "Collecting data..."
             for t in range(timesteps):
                 #run old policy
                 states.append(self.getState())
@@ -298,17 +350,38 @@ class NumberCatchingAI:
             #data collected, now to be analyzed
             #get values
             for t in range(timesteps):
-                values.append(self.cumulativeReward(t, rewards))
+                values.append([self.cumulativeReward(t, rewards)])
             
             #train the policy function
-            for i in range(timesteps * 4):
+            print "Training policy..."
+            for i in range(200):
                 rand = random.randint(0, len(actions) - 1)
                 self.trainPPO(states[rand], actions[rand], values[rand][0])
             
+            
+            
             #train the value function
-            self.valueFunction.fit(np.array(states), np.array(values), epochs=4)
+            self.valueFunction.fit(np.array(states), np.array(values), epochs=1, steps_per_epoch= 30 * timesteps)
+
+            #print out stats
+            print "Iteration: " + str(iter)
+            print "AI score: " + str(self.runGameAI())
+            self.policyFunction.save("oldPolicy.h5")
+            print "Iteration took " + str((time.time() - startTime)) + " seconds"
+
+            gc.collect()
+
             
 
+    def runGameAI(self):
+        self.score = 0
+        for i in range(200):
+            keras.backend.clear_session()
+            self.policyFunction = keras.models.load_model("oldPolicy.h5")
+            action = self.getBestAction()
+            self.performAction(action)
+        
+        return self.score
             
 
     def cumulativeReward(self, timestep, rewards):
@@ -325,4 +398,4 @@ class NumberCatchingAI:
 
 
 n = NumberCatchingAI(200)
-n.playGameHuman()
+n.trainAI(100, 1000)

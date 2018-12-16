@@ -43,8 +43,11 @@ NumberCatchingAI::NumberCatchingAI(){
     turnLimit = 200;
 
 
-    policyFunction = NeuralNetwork(16,64,64,3);
-    valueFunction = NeuralNetwork(16,64,64,1);
+    policyFunction = NeuralNetwork(16,32,32,3);
+    policyFunction.randomizeNetwork(-0.01, 0.01);
+
+
+    valueFunction = NeuralNetwork(16,32,32,1);
     
     discountFactor = 0.9;
 
@@ -432,7 +435,6 @@ double NumberCatchingAI::getStandardDeviaton(std::vector<double> data){
 
 std::vector<double> NumberCatchingAI::runGame(){
     resetGame();
-    //policyFunction->loadNetwork("networkData.txt");
     policyFunction.loadNetwork("paramsOld");
 
     int bestAction;
@@ -503,13 +505,13 @@ double NumberCatchingAI::getValue(std::vector<double> state){
 
     std::vector<double> input = state;
     for(int i = 0; i < state.size(); i++){
-        //input[i] /= 25.0;
+        input[i] /= 25.0;
     }
 
     //NN thing here
     std::vector<double> output = valueFunction.compute(input);
-
-    return output[0];
+    //std::cout << "Predicted value = " << output[0] * 10 << std::endl;
+    return output[0] * 10;
 
     std::vector<double> oldState = encodeState();
     double oldScore = score;
@@ -769,6 +771,7 @@ void NumberCatchingAI::trainAIPPO(int iterations, int timeSteps, int epochs, dou
         
         resetGame();
         //run for timesteps, collect data along the way
+        //std::cout << "Collecting data..." << std::endl;
         for(int t = 0; t < timeSteps; t++){
 
             //perform action with current policy
@@ -798,8 +801,9 @@ void NumberCatchingAI::trainAIPPO(int iterations, int timeSteps, int epochs, dou
         }
         for(int r = 0; r < valueFunctionInputs.size(); r++){
             for(int c = 0; c < valueFunctionInputs[0].size(); c++){
-                //valueFunctionInputs[r][c] /= 25.0;
+                valueFunctionInputs[r][c] /= 25.0;
             }
+            valueFunctionOutputs[r][0] /= 10.0;
 
         }
 
@@ -807,12 +811,15 @@ void NumberCatchingAI::trainAIPPO(int iterations, int timeSteps, int epochs, dou
         valueFunction.trainingInputs = valueFunctionInputs;
         valueFunction.trainingOutputs = valueFunctionOutputs;
         //now train the value function
-        valueFunction.stochasticGradientDescentApprox(0.5, timeSteps * 20, learningRate);
+        //std::cout << "Training value function...." << std::endl;
+        
 
         //calculate advantages for each timestep
         for(int t = 0; t < timeSteps; t++){
             advantages.push_back(getAdvantage(t, rewards, states));
         }
+
+        valueFunction.jasonTrain(0.01, timeSteps * 200, learningRate);
         
         for(int t = 0; t < advantages.size(); t++){
             probR.push_back(probRatio(states[t], actions[t]));
@@ -829,7 +836,7 @@ void NumberCatchingAI::trainAIPPO(int iterations, int timeSteps, int epochs, dou
         //perform PPO updates
         
         int randomDataIndex;
-
+        //std::cout << "Updating policy...." << std::endl;
         int iterations = timeSteps * 4;
         policyFunction.saveNetwork("paramsCurrent");
         for(int t = 0; t < iterations; t++){
@@ -879,23 +886,6 @@ void NumberCatchingAI::watchGame(){
 
 int main(){
 
-    NeuralNetwork nn = NeuralNetwork(1,64,64,1);
-
-    std::vector<std::vector<double>> in = std::vector<std::vector<double>>();
-    std::vector<std::vector<double>> out = std::vector<std::vector<double>>();
-
-    for(double i = -20; i < 20; i += 0.1){
-        in.push_back(std::vector<double>(1, i));
-        out.push_back(std::vector<double>(1 , i * i));
-    }
-
-    nn.trainingInputs = in;
-    nn.trainingOutputs = out;
-
-    nn.stochasticGradientDescentApprox(0, 1e7, 1e-5);
-
-
-
     NumberCatchingAI n = NumberCatchingAI();
     
     //n.runGameHuman();
@@ -903,7 +893,7 @@ int main(){
 
     
 
-    n.trainAIPPO(1e3, 1e3, 10, 1e-5);
+    n.trainAIPPO(1e3, 1e3, 10, 1e-4);
 
 
     //compiles with: g++ -c -o cpp.o -std=c++11 NumberCatchingAI.cpp

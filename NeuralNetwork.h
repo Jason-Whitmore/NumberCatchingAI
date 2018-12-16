@@ -24,6 +24,7 @@ struct Connection{
     double weight;
     int id;
     double loss;
+    bool isBias;
 };
 
 
@@ -53,12 +54,14 @@ class NeuralNetwork {
     double calculateAverageLoss();
     double calculateLoss(int);
     std::vector<double> getGradient(int);
+    std::vector<double> getGradientApprox(int);
     double getDerivative(Node*);
 
     double sumNodeOutputLoss(Node*);
     double getDerivative(double x, ActivationFunction f);
 
     void stochasticGradientDescent(double targetLoss, uint epochs, double learningRate);
+    void jasonTrain(double targetLoss, uint iterations, double learningRate);
     void stochasticGradientDescentApprox(double targetLoss, uint epochs, double learningRate);
     std::vector<int> randomOrder(int);
 
@@ -69,6 +72,6 @@ class NeuralNetwork {
     void loadNetwork(std::string);
     bool contains(std::string, std::string);
     std::vector<std::string> split(std::string, std::string);
-    void randomizeNetwork();
+    void randomizeNetwork(double min, double max);
 
 };
