@@ -360,7 +360,7 @@ void NeuralNetwork::jasonTrain(double targetLoss, uint iterations, double learni
     std::vector<double> gradient;
     std::vector<int> ordering;
 
-    const double lambda = 0.01;
+    const double lambda = 0.04;
 
     double effectiveLearningRate = learningRate;
 
