@@ -3,6 +3,7 @@
 #include <iostream>
 #include <random>
 #include <fstream>
+#include <math.h>
 
 
 enum ActivationFunction{Tanh, Sigmoid, RELU, LeakyRELU, Linear};
@@ -54,6 +55,7 @@ class NeuralNetwork {
     double calculateAverageLoss();
     double calculateLoss(int);
     std::vector<double> getGradient(int);
+    std::vector<double> getGradient();
     std::vector<double> getGradientApprox(int);
     double getDerivative(Node*);
 
@@ -73,5 +75,6 @@ class NeuralNetwork {
     bool contains(std::string, std::string);
     std::vector<std::string> split(std::string, std::string);
     void randomizeNetwork(double min, double max);
+    static double gradientAvgAbsValue(std::vector<double> gradient);
 
 };

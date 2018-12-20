@@ -43,11 +43,11 @@ NumberCatchingAI::NumberCatchingAI(){
     turnLimit = 200;
 
 
-    policyFunction = NeuralNetwork(16,32,32,3);
+    policyFunction = NeuralNetwork(16,64,64,3);
     policyFunction.randomizeNetwork(-0.01, 0.01);
 
 
-    valueFunction = NeuralNetwork(16,32,32,1);
+    valueFunction = NeuralNetwork(16,64,64,1);
     valueFunction.randomizeNetwork(-0.01, 0.01);
     
     discountFactor = 0.9;
@@ -512,7 +512,7 @@ double NumberCatchingAI::getValue(std::vector<double> state){
     //NN thing here
     std::vector<double> output = valueFunction.compute(input);
     //std::cout << "Predicted value = " << output[0] * 10 << std::endl;
-    return output[0] * 1;
+    return output[0];
 
     std::vector<double> oldState = encodeState();
     double oldScore = score;
@@ -753,7 +753,7 @@ void NumberCatchingAI::trainAIPPO(int iterations, int timeSteps, int epochs, dou
 
     std::vector<double> advantages = std::vector<double>();
     std::vector<int> ordering = std::vector<int>();
-    const double epsilon = 0.1;
+    const double epsilon = 0.2;
 
     std::vector<double> rewards = std::vector<double>();
     int bestAction;
@@ -766,13 +766,11 @@ void NumberCatchingAI::trainAIPPO(int iterations, int timeSteps, int epochs, dou
 
     std::string csvString = "";
 
-    double testProb = 0.35;
-
     for(int i = 0; i < iterations; i++){
         
         resetGame();
         //run for timesteps, collect data along the way
-        //std::cout << "Collecting data..." << std::endl;
+        std::cout << "Collecting data..." << std::endl;
         for(int t = 0; t < timeSteps; t++){
 
             //perform action with current policy
@@ -812,7 +810,7 @@ void NumberCatchingAI::trainAIPPO(int iterations, int timeSteps, int epochs, dou
         valueFunction.trainingInputs = valueFunctionInputs;
         valueFunction.trainingOutputs = valueFunctionOutputs;
         //now train the value function
-        //std::cout << "Training value function...." << std::endl;
+        std::cout << "Training value function...." << std::endl;
         
 
         //calculate advantages for each timestep
@@ -820,7 +818,7 @@ void NumberCatchingAI::trainAIPPO(int iterations, int timeSteps, int epochs, dou
             advantages.push_back(getAdvantage(t, rewards, states));
         }
 
-        valueFunction.jasonTrain(0.01, timeSteps * 2000, learningRate);
+        valueFunction.jasonTrain(1, timeSteps * 200, learningRate);
         
         for(int t = 0; t < advantages.size(); t++){
             probR.push_back(probRatio(states[t], actions[t]));
@@ -837,7 +835,7 @@ void NumberCatchingAI::trainAIPPO(int iterations, int timeSteps, int epochs, dou
         //perform PPO updates
         
         int randomDataIndex;
-        //std::cout << "Updating policy...." << std::endl;
+        std::cout << "Updating policy...." << std::endl;
         int iterations = timeSteps * 4;
         policyFunction.saveNetwork("paramsCurrent");
         for(int t = 0; t < iterations; t++){
@@ -894,7 +892,7 @@ int main(){
 
     
 
-    n.trainAIPPO(1e3, 1e3, 10, 1e-4);
+    n.trainAIPPO(1e3, 1e6, 10, 1e-4);
 
 
     //compiles with: g++ -c -o cpp.o -std=c++11 NumberCatchingAI.cpp
