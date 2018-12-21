@@ -4,6 +4,8 @@
 #include <random>
 #include <fstream>
 #include <math.h>
+#include <thread>
+#include <mutex>
 
 
 enum ActivationFunction{Tanh, Sigmoid, RELU, LeakyRELU, Linear};
@@ -48,6 +50,7 @@ class NeuralNetwork {
     Node* biasNode;
 
     double randomDouble(double,double);
+    static double randomDoubleNormal(double mean, double variance);
     std::vector<double> compute(std::vector<double>);
 
     static double getNodeOutput(Node*);
@@ -76,5 +79,7 @@ class NeuralNetwork {
     std::vector<std::string> split(std::string, std::string);
     void randomizeNetwork(double min, double max);
     static double gradientAvgAbsValue(std::vector<double> gradient);
+
+    void minibatchThreadFunction(int sampleId, std::mutex mtx, std::vector<double>* grad);
 
 };

@@ -506,13 +506,13 @@ double NumberCatchingAI::getValue(std::vector<double> state){
 
     std::vector<double> input = state;
     for(int i = 0; i < state.size(); i++){
-        //input[i] /= 25.0;
+        input[i] /= 25.0;
     }
 
     //NN thing here
     std::vector<double> output = valueFunction.compute(input);
     //std::cout << "Predicted value = " << output[0] * 10 << std::endl;
-    return output[0];
+    return output[0] * 10;
 
     std::vector<double> oldState = encodeState();
     double oldScore = score;
@@ -800,9 +800,9 @@ void NumberCatchingAI::trainAIPPO(int iterations, int timeSteps, int epochs, dou
         }
         for(int r = 0; r < valueFunctionInputs.size(); r++){
             for(int c = 0; c < valueFunctionInputs[0].size(); c++){
-                //valueFunctionInputs[r][c] /= 25.0;
+                valueFunctionInputs[r][c] /= 25.0;
             }
-            //valueFunctionOutputs[r][0] /= 10.0;
+            valueFunctionOutputs[r][0] /= 10.0;
 
         }
 
@@ -818,7 +818,7 @@ void NumberCatchingAI::trainAIPPO(int iterations, int timeSteps, int epochs, dou
             advantages.push_back(getAdvantage(t, rewards, states));
         }
 
-        valueFunction.jasonTrain(1, timeSteps * 200, learningRate);
+        valueFunction.jasonTrain(0.1, timeSteps * 2000, learningRate);
         
         for(int t = 0; t < advantages.size(); t++){
             probR.push_back(probRatio(states[t], actions[t]));
@@ -892,7 +892,7 @@ int main(){
 
     
 
-    n.trainAIPPO(1e3, 1e6, 10, 1e-4);
+    n.trainAIPPO(1e3, 1e5, 10, 1e-4);
 
 
     //compiles with: g++ -c -o cpp.o -std=c++11 NumberCatchingAI.cpp

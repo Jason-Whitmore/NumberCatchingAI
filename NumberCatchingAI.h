@@ -58,6 +58,7 @@ class NumberCatchingAI{
 
     static int randomInt(int min, int max);
     static double randomDouble(double min, double max);
+    
 
     static double getAverage(std::vector<double> data);
     static double getStandardDeviaton(std::vector<double> data);
