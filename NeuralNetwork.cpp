@@ -117,7 +117,8 @@ NeuralNetwork::NeuralNetwork(int numInputs, int layer1, int layer2, int numOutpu
     std::normal_distribution<double> distribution(0,1);
 
     for(int i = 0; i < connections.size(); i++){
-        connections[i]->weight = randomDouble(-1,1);
+        connections[i]->weight = randomDoubleNormal(0,3);
+        //connections[i]->weight = randomDouble(-1,1);
     }
 }
 
@@ -256,9 +257,10 @@ std::vector<double> NeuralNetwork::getGradient(int sampleIndex){
 
                 //double lossWRToutput = con->start->value * getDerivative(nodes[layer][n]) * sumNodeOutputLoss(nodes[layer][n]);
                 
-                //con->loss = con->start->value * 
                 
                 con->loss = con->start->value * getDerivative(nodes[layer][n]) * sumNodeOutputLoss(nodes[layer][n]);
+
+                
                 if(con->loss > 1000){
                     con->loss = 1000;
                 }
@@ -334,7 +336,8 @@ void NeuralNetwork::stochasticGradientDescent(double targetLoss, uint epochs, do
     std::vector<double> gradient;
     std::vector<int> ordering;
 
-    const double lambda = 0.04;
+    const double lambda = 0.0000;
+    std::string csvString = "";
     
 
     double effectiveLearningRate = learningRate;
@@ -359,75 +362,80 @@ void NeuralNetwork::stochasticGradientDescent(double targetLoss, uint epochs, do
         }
         if(iter % trainingInputs.size() == 0){
             std::cout << "Loss = " << calculateAverageLoss() << std::endl;
-            //system("clear");
+            csvString += std::to_string(iter/ trainingInputs.size()) + "," + std::to_string(calculateAverageLoss()) + "\n";
+            std::cout << "Avg gradient slope = " << gradientAvgAbsValue(gradient) << std::endl;
         }
         currentSample++;
+
+        std::ofstream file;
+        file.open("gradData.csv");
+
+        file << csvString;
+        file.close();
     }
+
+
 }
 
 void NeuralNetwork::jasonTrain(double targetLoss, uint iterations, double learningRate){
     std::vector<double> gradient;
-    std::vector<int> ordering;
+    std::vector<int> ordering = randomOrder(trainingInputs.size());
 
-    const double lambda = 0.04;
-    const double epsilon = 1e-3;
-
-    double effectiveLearningRate = learningRate;
+    const double lambda = 0.01;
+    const double epsilon = 1e-5;
 
     double bestLoss = calculateAverageLoss();
     std::vector<double> bestParams = getWeights();
+    
     uint currentSample = 0;
     for(uint iter = 0; iter < iterations; iter++){
-        if(iter % trainingInputs.size() == 0){
-            ordering = randomOrder(trainingInputs.size());
-            currentSample = 0;
-        }
 
         gradient = getGradient(ordering[currentSample]);
-
-    
         //apply learning rate to gradient
         Connection* c;
-        
-        //keep training
         for(int i = 0; i < gradient.size(); i++){
             c = connections[i];
             c->weight = c->weight - (learningRate * gradient[i]) - learningRate * lambda * c->weight;
         }   
-        
-        
+    
 
-
-        if(iter % trainingInputs.size() == 0 && calculateAverageLoss() < targetLoss){
-            return;
-        }
-
-
-        //std::cout << calculateLoss(ordering[currentSample]) << std::endl;
 
         if(iter % trainingInputs.size() == 0){
+
+            ordering = randomOrder(trainingInputs.size());
+            currentSample = 0;
+
             double currentLoss = calculateAverageLoss();
+
+            if(currentLoss < targetLoss){
+                return;
+            }
+
+
             if(currentLoss < bestLoss){
                 bestLoss = currentLoss;
                 bestParams = getWeights();
             }
+
             std::cout << "Loss = " << currentLoss << std::endl;
-            /**
+            
             double avgSlope = gradientAvgAbsValue(getGradient());
             //"kick" out of a local minimum
             if(avgSlope < epsilon){
-                std::cout << "Kicking out of minimum" << std::endl;
+                std::cout << "In a minimum" << std::endl;
                 Connection* c;
                 for(int i = 0; i < gradient.size(); i++){
-                    c = connections[i];
-                    c->weight = c->weight + randomDoubleNormal(0,1);
+                    //c = connections[i];
+                    //c->weight = c->weight + randomDoubleNormal(0,1);
                 }
             }
-            **/
+            
         }
         currentSample++;
     }
-    //std::cout << "Best loss = " << bestLoss << std::endl;
+
+
+    //set weights to whatever the best one it found was
     for(int w = 0; w < connections.size(); w++){
         connections[w]->weight = bestParams[w];
     }

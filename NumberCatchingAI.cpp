@@ -48,7 +48,9 @@ NumberCatchingAI::NumberCatchingAI(){
 
 
     valueFunction = NeuralNetwork(16,64,64,1);
-    valueFunction.randomizeNetwork(-0.01, 0.01);
+    //valueFunction.setActivationFunction(1, ActivationFunction::Tanh);
+    //valueFunction.setActivationFunction(2, ActivationFunction::Tanh);
+    //valueFunction.randomizeNetwork(-0.1, 0.1);
     
     discountFactor = 0.9;
 
@@ -817,8 +819,7 @@ void NumberCatchingAI::trainAIPPO(int iterations, int timeSteps, int epochs, dou
         for(int t = 0; t < timeSteps; t++){
             advantages.push_back(getAdvantage(t, rewards, states));
         }
-
-        valueFunction.jasonTrain(0.1, timeSteps * 2000, learningRate);
+        valueFunction.stochasticGradientDescent(0.1, timeSteps * 1000, learningRate);
         
         for(int t = 0; t < advantages.size(); t++){
             probR.push_back(probRatio(states[t], actions[t]));
@@ -892,7 +893,7 @@ int main(){
 
     
 
-    n.trainAIPPO(1e3, 1e5, 10, 1e-4);
+    n.trainAIPPO(1e3, 1e4, 10, 1e-4);
 
 
     //compiles with: g++ -c -o cpp.o -std=c++11 NumberCatchingAI.cpp
