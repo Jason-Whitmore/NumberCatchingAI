@@ -48,9 +48,12 @@ NumberCatchingAI::NumberCatchingAI(){
 
 
     valueFunction = NeuralNetwork(16,64,64,1);
-    //valueFunction.setActivationFunction(1, ActivationFunction::Tanh);
-    //valueFunction.setActivationFunction(2, ActivationFunction::Tanh);
-    //valueFunction.randomizeNetwork(-0.1, 0.1);
+    valueFunction.setActivationFunction(1, ActivationFunction::Tanh);
+    valueFunction.setActivationFunction(2, ActivationFunction::Tanh);
+    valueFunction.randomizeNetwork(-0.01, 0.01);
+
+    Qfunction = NeuralNetwork(17,64,64,1);
+    Qfunction.randomizeNetwork(0,1);
     
     discountFactor = 0.9;
 
@@ -289,6 +292,17 @@ std::vector<double> NumberCatchingAI::encodeState(){
 
     return ret;
 }
+std::vector<double> NumberCatchingAI::normalizeState(std::vector<double> state){
+    std::vector<double> ret = std::vector<double>(state);
+    for(int i = 0; i < ret.size() - 1; i+=3){
+        ret[i] /= 15.0;
+        ret[i+1] /= 25.0;
+        ret[i+2] /= 9.0;
+    }
+
+    ret[ret.size()-1] /= 15.0;
+    return ret;
+}
 
 int NumberCatchingAI::highestIndex(std::vector<double> outputVector){
     int highestIndex = 0;
@@ -436,7 +450,7 @@ double NumberCatchingAI::getStandardDeviaton(std::vector<double> data){
 
 
 
-std::vector<double> NumberCatchingAI::runGame(){
+int NumberCatchingAI::runGame(){
     resetGame();
     policyFunction.loadNetwork("paramsOld");
 
@@ -456,7 +470,7 @@ std::vector<double> NumberCatchingAI::runGame(){
     std::vector<double> r = std::vector<double>();
     r.push_back(score);
     r.push_back(avg);
-    return r;
+    return score;
 }
 
 
@@ -507,14 +521,28 @@ std::vector<double> NumberCatchingAI::getDeltas(std::vector<double> scores){
 double NumberCatchingAI::getValue(std::vector<double> state){
 
     std::vector<double> input = state;
-    for(int i = 0; i < state.size(); i++){
-        input[i] /= 25.0;
-    }
+    input = normalizeState(state);
 
     //NN thing here
     std::vector<double> output = valueFunction.compute(input);
     //std::cout << "Predicted value = " << output[0] * 10 << std::endl;
-    return output[0] * 10;
+    //return output[0] * 10;
+
+    const int numSamples = 25;
+    double reward = 0;
+    policyFunction.loadNetwork("paramsOld");
+    for(int i = 0; i < numSamples; i++){
+        setState(state);
+        for(int t = 0; t < 25; t++){
+            int action = getBestAction();
+            reward += getReward(state, action) * std::pow(discountFactor, t);
+
+        }
+    }
+    policyFunction.loadNetwork("paramsCurrent");
+    return reward / numSamples;
+
+
 
     std::vector<double> oldState = encodeState();
     double oldScore = score;
@@ -772,7 +800,7 @@ void NumberCatchingAI::trainAIPPO(int iterations, int timeSteps, int epochs, dou
         
         resetGame();
         //run for timesteps, collect data along the way
-        std::cout << "Collecting data..." << std::endl;
+        //std::cout << "Collecting data..." << std::endl;
         for(int t = 0; t < timeSteps; t++){
 
             //perform action with current policy
@@ -800,26 +828,24 @@ void NumberCatchingAI::trainAIPPO(int iterations, int timeSteps, int epochs, dou
             }
             valueFunctionOutputs.push_back(std::vector<double>(1, sum));
         }
-        for(int r = 0; r < valueFunctionInputs.size(); r++){
-            for(int c = 0; c < valueFunctionInputs[0].size(); c++){
-                valueFunctionInputs[r][c] /= 25.0;
-            }
-            valueFunctionOutputs[r][0] /= 10.0;
 
+        for(int r = 0; r < valueFunctionInputs.size(); r++){
+            valueFunctionInputs[r] = normalizeState(valueFunctionInputs[r]);
+            valueFunctionOutputs[r][0] = valueFunctionOutputs[r][0] / 10.0;
         }
 
         //set training dataset
         valueFunction.trainingInputs = valueFunctionInputs;
         valueFunction.trainingOutputs = valueFunctionOutputs;
         //now train the value function
-        std::cout << "Training value function...." << std::endl;
+        //std::cout << "Training value function...." << std::endl;
         
 
         //calculate advantages for each timestep
         for(int t = 0; t < timeSteps; t++){
             advantages.push_back(getAdvantage(t, rewards, states));
         }
-        valueFunction.stochasticGradientDescent(0.1, timeSteps * 1000, learningRate);
+        //valueFunction.stochasticGradientDescent(0.0001, timeSteps * 30, learningRate);
         
         for(int t = 0; t < advantages.size(); t++){
             probR.push_back(probRatio(states[t], actions[t]));
@@ -836,21 +862,20 @@ void NumberCatchingAI::trainAIPPO(int iterations, int timeSteps, int epochs, dou
         //perform PPO updates
         
         int randomDataIndex;
-        std::cout << "Updating policy...." << std::endl;
+        //std::cout << "Updating policy...." << std::endl;
         int iterations = timeSteps * 4;
         policyFunction.saveNetwork("paramsCurrent");
-        for(int t = 0; t < iterations; t++){
+        for(int t = 0; t < 100; t++){
             randomDataIndex = rand() % states.size();
             PPOupdate(states[randomDataIndex], actions[randomDataIndex], advantages[randomDataIndex], epsilon, learningRate);
         }
 
         policyFunction.saveNetwork("paramsOld");
 
-        std::vector<double> results = runGame();
-        std::cout << "Iteration " << i << " complete. Avg score = " << results[0] << std::endl;
-        std::cout << "Average prob = " << results[1] << std::endl;
+        double results = runGame();
+        std::cout << "Iteration " << i << " complete. Avg score = " << results << std::endl;
         std::cout << "Avg loss for value network: " << valueFunction.calculateAverageLoss() << std::endl;
-        results.clear();
+        std::cout << "Avg advantage = " << getAverage(advantages) << std::endl;
         probR.clear();
  
 
@@ -862,6 +887,80 @@ void NumberCatchingAI::trainAIPPO(int iterations, int timeSteps, int epochs, dou
         
         //set old policy
         
+    }
+}
+
+void NumberCatchingAI::trainAIQ(int iterations, int timeSteps, int epochs, double learningRate){
+    std::vector<std::vector<double>> persistantInputs = std::vector<std::vector<double>>();
+    std::vector<std::vector<double>> persistantOutputs = std::vector<std::vector<double>>();
+
+
+    std::vector<std::vector<double>> stateActions = std::vector<std::vector<double>>();
+    std::vector<double> rewards = std::vector<double>();
+
+    const double epsilon = 0.98;
+    const double discountFactor = 0.95;
+    const int maxStorageSize = timeSteps * 10;
+
+    for(int iter = 0; iter < iterations; iter++){
+        //Run game for timesteps. Collect data.
+        std::cout << "Collecting data..." << std::endl;
+        for(int step = 0; step < timeSteps; step++){
+            if(randomDouble(0,1) < std::pow(epsilon, iter)){
+                //exploration, choose randomly.
+                int action = randomInt(-1,1);
+                stateActions.push_back(encodeStateAction(action));
+                rewards.push_back(getReward(encodeState(), action));
+                performAction(action);
+            } else {
+                //exploitation, choose the best action
+                int action = -1;
+                double bestReward = Qfunction.compute(encodeStateAction(-1)).at(0);
+                for(int i = -1; i < 2; i++){
+                    if(Qfunction.compute(encodeStateAction(i)).at(0) > bestReward){
+                        action = i;
+                        bestReward = Qfunction.compute(encodeStateAction(i)).at(0);
+                    }
+                }
+                rewards.push_back(getReward(encodeState(), action));
+                performAction(action);
+                stateActions.push_back(encodeStateAction(action));
+            }
+        }
+
+        std::cout << "Calculating rewards..." << std::endl;
+        //calculate the cumulative reward.
+        for(int t = 0; t < timeSteps; t++){
+            double reward = 0;
+            for(int n = t; n < timeSteps; n++){
+                reward += std::pow(discountFactor, n - t) * rewards[n];
+            }
+
+            persistantInputs.push_back(stateActions[t]);
+            persistantOutputs.push_back(std::vector<double>(1, reward / 10.0));
+        }
+
+        //remove entries at random from persistent storage if we are over a certain number of data points
+        while(persistantInputs.size() > maxStorageSize){
+            int randomIndex = randomInt(0, persistantInputs.size());
+
+            persistantInputs.erase(persistantInputs.begin() + randomIndex);
+            persistantOutputs.erase(persistantOutputs.begin() + randomIndex);
+        }
+
+        //now train the Q network
+
+        Qfunction.trainingInputs = persistantInputs;
+        Qfunction.trainingOutputs = persistantOutputs;
+
+        std::cout << "Adjusting policy..." << std::endl;
+        Qfunction.stochasticGradientDescent(0.1, timeSteps * epochs, learningRate);
+
+        stateActions.clear();
+        rewards.clear();
+
+
+        std::cout << "Iteration " << iter << " Score = " << runGame() << std::endl; 
     }
 }
 
@@ -892,8 +991,25 @@ int main(){
     //n.watchGame();
 
     
+    //n.trainAIQ(1e3, 1e3, 10, 1e-4);
+    n.trainAIPPO(1e3, 1e3, 10, 1e-4);
 
-    n.trainAIPPO(1e3, 1e4, 10, 1e-4);
+
+    NeuralNetwork net = NeuralNetwork(1,64,64,1);
+
+    std::vector<std::vector<double>> inputs = std::vector<std::vector<double>>();
+    std::vector<std::vector<double>> outputs = std::vector<std::vector<double>>();
+
+    for(double x = 0; x < 10; x += 0.01){
+        inputs.push_back(std::vector<double>(1, x / 10.0));
+        outputs.push_back(std::vector<double>(1, (x * x) / 100.0));
+    }
+
+    net.trainingInputs = inputs;
+    net.trainingOutputs = outputs;
+
+    net.stochasticGradientDescent(0, inputs.size() * 1000, 1e-4);
+
 
 
     //compiles with: g++ -c -o cpp.o -std=c++11 NumberCatchingAI.cpp

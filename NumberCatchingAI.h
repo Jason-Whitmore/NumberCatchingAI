@@ -43,7 +43,7 @@ class NumberCatchingAI{
 
     void resetGame();
 
-    std::vector<double> runGame();
+    int runGame();
 
     void performAction(int action);
 
@@ -51,6 +51,7 @@ class NumberCatchingAI{
 
     std::vector<double> encodeStateAction(int action);
     std::vector<double> encodeState();
+    std::vector<double> normalizeState(std::vector<double> state);
     
     int highestIndex(std::vector<double> outputVector);
 
@@ -99,10 +100,13 @@ class NumberCatchingAI{
 
     void trainAIPPO(int iterations, int timeSteps, int epochs, double learningRate);
 
+    void trainAIQ(int iterations, int timeSteps, int epochs, double learningRate);
+
     NeuralNetwork policyFunction;
 
     NeuralNetwork valueFunction;
 
+    NeuralNetwork Qfunction;
 
 
 
