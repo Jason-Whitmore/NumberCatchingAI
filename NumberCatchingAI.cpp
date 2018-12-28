@@ -43,8 +43,8 @@ NumberCatchingAI::NumberCatchingAI(){
     turnLimit = 200;
 
 
-    policyFunction = NeuralNetwork(16,64,64,3);
-    policyFunction.randomizeNetwork(-0.01, 0.01);
+    policyFunction = NeuralNetwork(16,16,16,3);
+    policyFunction.randomizeNetwork(0, 0.1);
 
 
     valueFunction = NeuralNetwork(16,64,64,1);
@@ -528,9 +528,9 @@ double NumberCatchingAI::getValue(std::vector<double> state){
     //std::cout << "Predicted value = " << output[0] * 10 << std::endl;
     //return output[0] * 10;
 
-    const int numSamples = 25;
+    const int numSamples = 8;
     double reward = 0;
-    policyFunction.loadNetwork("paramsOld");
+    policyFunction.loadNetwork("paramsOld2");
     for(int i = 0; i < numSamples; i++){
         setState(state);
         for(int t = 0; t < 25; t++){
@@ -539,7 +539,7 @@ double NumberCatchingAI::getValue(std::vector<double> state){
 
         }
     }
-    policyFunction.loadNetwork("paramsCurrent");
+    policyFunction.loadNetwork("paramsOld");
     return reward / numSamples;
 
 
@@ -607,6 +607,24 @@ double NumberCatchingAI::getAdvantage(int timeStep, std::vector<double> scores, 
     return sum;
 }
 
+double NumberCatchingAI::getAdvantageGAE(int timeStep, std::vector<double> scores, std::vector<std::vector<double>> states){
+    const double lambda = 0.95;
+
+    std::vector<double> delta = std::vector<double>();
+
+    double advantage = 0;
+    //std::cout << "Got here" << std::endl;
+    for(int t = timeStep; t < scores.size() - 1; t++){
+        delta.push_back(scores[t] + discountFactor * getValue(states[t+1]) - getValue(states[t]));
+    }
+
+    for(int t = timeStep; t < scores.size() - 1; t++){
+        advantage += std::pow(discountFactor * lambda, t - timeStep) * delta[t];
+    }
+
+
+    return advantage;
+}
 
 
 void NumberCatchingAI::setState(std::vector<double> state){
@@ -843,7 +861,7 @@ void NumberCatchingAI::trainAIPPO(int iterations, int timeSteps, int epochs, dou
 
         //calculate advantages for each timestep
         for(int t = 0; t < timeSteps; t++){
-            advantages.push_back(getAdvantage(t, rewards, states));
+            advantages.push_back(getAdvantageGAE(t, rewards, states));
         }
         //valueFunction.stochasticGradientDescent(0.0001, timeSteps * 30, learningRate);
         
@@ -858,14 +876,14 @@ void NumberCatchingAI::trainAIPPO(int iterations, int timeSteps, int epochs, dou
         //states.clear();
         rewards.clear();
         
-
+        policyFunction.saveNetwork("paramsOld2");
         //perform PPO updates
         
         int randomDataIndex;
         //std::cout << "Updating policy...." << std::endl;
-        int iterations = timeSteps * 4;
+        int iterations = timeSteps;
         policyFunction.saveNetwork("paramsCurrent");
-        for(int t = 0; t < 100; t++){
+        for(int t = 0; t < timeSteps * 4; t++){
             randomDataIndex = rand() % states.size();
             PPOupdate(states[randomDataIndex], actions[randomDataIndex], advantages[randomDataIndex], epsilon, learningRate);
         }
@@ -874,7 +892,8 @@ void NumberCatchingAI::trainAIPPO(int iterations, int timeSteps, int epochs, dou
 
         double results = runGame();
         std::cout << "Iteration " << i << " complete. Avg score = " << results << std::endl;
-        std::cout << "Avg loss for value network: " << valueFunction.calculateAverageLoss() << std::endl;
+        //std::cout << "Avg loss for value network: " << valueFunction.calculateAverageLoss() << std::endl;
+        std::cout << "Avg probability = " << getAverage(probs) << std::endl;
         std::cout << "Avg advantage = " << getAverage(advantages) << std::endl;
         probR.clear();
  

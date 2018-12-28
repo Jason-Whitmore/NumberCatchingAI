@@ -91,6 +91,7 @@ class NumberCatchingAI{
     static double clip(double value, double min, double max);
 
     double getAdvantage(int timeStep, std::vector<double> scores, std::vector<std::vector<double>> states);
+    double getAdvantageGAE(int timeStep, std::vector<double> scores, std::vector<std::vector<double>> states);
 
     void setState(std::vector<double> state);
 
