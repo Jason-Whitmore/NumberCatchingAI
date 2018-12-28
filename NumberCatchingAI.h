@@ -43,7 +43,7 @@ class NumberCatchingAI{
 
     void resetGame();
 
-    int runGame();
+    double runGame();
 
     void performAction(int action);
 
@@ -92,6 +92,7 @@ class NumberCatchingAI{
 
     double getAdvantage(int timeStep, std::vector<double> scores, std::vector<std::vector<double>> states);
     double getAdvantageGAE(int timeStep, std::vector<double> scores, std::vector<std::vector<double>> states);
+    double getAdvantageGAE(int timeStep, std::vector<double> GAEdeltas);
 
     void setState(std::vector<double> state);
 

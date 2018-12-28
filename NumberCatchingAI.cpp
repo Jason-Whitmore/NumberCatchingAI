@@ -43,8 +43,8 @@ NumberCatchingAI::NumberCatchingAI(){
     turnLimit = 200;
 
 
-    policyFunction = NeuralNetwork(16,16,16,3);
-    policyFunction.randomizeNetwork(0, 0.1);
+    policyFunction = NeuralNetwork(16,20,20,3);
+    policyFunction.randomizeNetwork(-0.01, 0.01);
 
 
     valueFunction = NeuralNetwork(16,64,64,1);
@@ -450,20 +450,31 @@ double NumberCatchingAI::getStandardDeviaton(std::vector<double> data){
 
 
 
-int NumberCatchingAI::runGame(){
+double NumberCatchingAI::runGame(){
     resetGame();
     policyFunction.loadNetwork("paramsOld");
 
     int bestAction;
     double bestQ;
+    const int numSamples = 100;
     std::vector<double> probs = std::vector<double>();
-    for(int i = 0; i < turnLimit; i++){
-        //choose action
-        bestAction = getBestAction();
-        probs.push_back(probability(encodeState(), bestAction));
-        //perform action
-        performAction(bestAction);
+
+    double avgScore = 0;
+
+    for(int game = 0; game < numSamples; game++){
+        resetGame();
+        for(int i = 0; i < turnLimit; i++){
+            
+            //choose action
+            bestAction = getBestAction();
+            probs.push_back(probability(encodeState(), bestAction));
+            //perform action
+            performAction(bestAction);
+        }
+        avgScore += score;
     }
+    return avgScore / numSamples;
+    
 
     double avg = getAverage(probs);
     probs.clear();
@@ -528,7 +539,7 @@ double NumberCatchingAI::getValue(std::vector<double> state){
     //std::cout << "Predicted value = " << output[0] * 10 << std::endl;
     //return output[0] * 10;
 
-    const int numSamples = 8;
+    const int numSamples = 100;
     double reward = 0;
     policyFunction.loadNetwork("paramsOld2");
     for(int i = 0; i < numSamples; i++){
@@ -607,6 +618,19 @@ double NumberCatchingAI::getAdvantage(int timeStep, std::vector<double> scores, 
     return sum;
 }
 
+double NumberCatchingAI::getAdvantageGAE(int timeStep, std::vector<double> GAEdeltas){
+    const double lambda = 0.95;
+
+    double advantage = 0;
+
+    for(int t = timeStep; t < GAEdeltas.size(); t++){
+        advantage += std::pow(discountFactor * lambda, t - timeStep) * GAEdeltas[t];
+    }
+
+    return advantage;
+}
+
+
 double NumberCatchingAI::getAdvantageGAE(int timeStep, std::vector<double> scores, std::vector<std::vector<double>> states){
     const double lambda = 0.95;
 
@@ -653,9 +677,9 @@ double NumberCatchingAI::runGameHuman(){
         printGame();
         //std::cout << "Value = " << getValue(encodeState()) << std::endl;
         std::cin >> input;
-        if(input == "l"){
+        if(input == "a"){
             performAction(-1);
-        } else if (input == "r"){
+        } else if (input == "d"){
             performAction(1);
         } else {
             performAction(0);
@@ -858,10 +882,16 @@ void NumberCatchingAI::trainAIPPO(int iterations, int timeSteps, int epochs, dou
         //now train the value function
         //std::cout << "Training value function...." << std::endl;
         
+        std::vector<double> GAEDelta = std::vector<double>();
+
+        for(int t = 0; t < timeSteps - 1; t++){
+            GAEDelta.push_back(rewards[t] + discountFactor * getValue(states[t + 1]) - getValue(states[t]));
+        }
+
 
         //calculate advantages for each timestep
         for(int t = 0; t < timeSteps; t++){
-            advantages.push_back(getAdvantageGAE(t, rewards, states));
+            advantages.push_back(getAdvantageGAE(t, GAEDelta));
         }
         //valueFunction.stochasticGradientDescent(0.0001, timeSteps * 30, learningRate);
         
@@ -870,7 +900,7 @@ void NumberCatchingAI::trainAIPPO(int iterations, int timeSteps, int epochs, dou
             probs.push_back(probability(states[t], actions[t]));
 
         }
-
+        GAEDelta.clear();
         
         
         //states.clear();
