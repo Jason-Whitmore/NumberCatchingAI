@@ -25,8 +25,9 @@ class NumberCatchingAI{
     std::vector<std::vector<char>> environment;
     std::vector<NumberRecord> numbers;
 
-    
-    //wrapper methods for gennan
+    std::vector<double> getGradPolicy(std::vector<double> state, int action);
+
+    void updatePolicy(std::vector<int> batchIndicies, std::vector<std::vector<double>> states, std::vector<int> actions, std::vector<int> advantages, double epsilon, double learningRate);
     void PPOupdate(std::vector<double> state, int action, double advantage, double epsilon, double learningRate);
     void trainNetwork(std::vector<std::vector<double>> inputs, std::vector<std::vector<double>> outputs, uint iterations, double learningRate);
     std::vector<double> networkPredict(std::vector<double> inputs);
@@ -62,7 +63,7 @@ class NumberCatchingAI{
     
 
     static double getAverage(std::vector<double> data);
-    static double getStandardDeviaton(std::vector<double> data);
+    static double getStandardDeviation(std::vector<double> data);
     static double getMedian(std::vector<double> data);
     static void printTukeySummary(std::vector<double> data);
     static double positiveCount(std::vector<double> data);
@@ -77,14 +78,21 @@ class NumberCatchingAI{
 
     double probability(std::vector<double> state, int action);
     static double sigmoid(double value);
+
+
     double probRatio(std::vector<double> state, int action);
+    double avgProbRatio(std::vector<std::vector<double>> states, std::vector<int> actions);
+
     static std::vector<double> applySoftmax(std::vector<double> vec);
+    void printStateInformation(std::vector<std::vector<double>> states);
     static std::vector<double> calculateProbabilities(std::vector<double> normalized);
 
     double getReward(int timeStep);
     double getReward(int timeStep, int sampleCount);
 
     void SGDIteration(int timeStep, double advantage, double learningRate);
+
+    static bool isNormalizedState(std::vector<double> state);
     
 
     static double min(std::vector<double> vec);
@@ -100,15 +108,20 @@ class NumberCatchingAI{
     double getValue(int timeStep);
     double getValue(std::vector<double> state);
 
-    void trainAIPPO(int iterations, int timeSteps, int epochs, double learningRate);
+    void trainAIPPO(int iterations, int timeSteps, int epochs, int minibatchSize, double learningRate);
 
-    void trainAIQ(int iterations, int timeSteps, int epochs, double learningRate);
+
+
+    double getAvgDiscountedReward(int timeSteps);
+    void trainAIGradient(int iterations, int timeSteps, int epochs, double learningRate);
+
+    void trainAISupervised(int epochs);
+
 
     NeuralNetwork policyFunction;
 
     NeuralNetwork valueFunction;
 
-    NeuralNetwork Qfunction;
 
 
 
