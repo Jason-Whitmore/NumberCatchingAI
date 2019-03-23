@@ -8,8 +8,10 @@ During my initial interest in reinforcement learning, I originally wanted to tac
 
 This environment requires a reasonable amount of intelligence to play successfully. Players must consider the numbers' location with respect to their bucket, but also make decisions regarding potential points to be earned. For example, players might want to "sacrifice" certain lower value numbers in order to catch a larger number, resulting in more net reward.
 
+Also, since rewards are obtained every 5 timesteps, this environment serves as a good mix between continuous and sparse reward functions.
+
 ## Human gameplay
-One advantage that this game has for human players is that it is not realtime. Players have an indefinite amount of time to consider their next move. Still, even an "experienced" player may still make a less than optimal choice even with consideration. With this in mind, the goal of this project is for the AI agent to have a score comparable to a human's. I played 8 games, 200 turns each and got an average (mean) score of and a standard deviation of .
+One advantage that this game has for human players is that it is not realtime. Players have an indefinite amount of time to consider their next move. Still, even an "experienced" player may still make a less than optimal choice even with consideration. With this in mind, the goal of this project is for the AI agent to have a score comparable to a human's. I played 8 games, 200 turns each and got an average (mean) score of 91 and a sample standard deviation of 26.47.
 
 ## AI Agent
 PPO relies on using 2 neural networks for both training and acting: a value and policy function. Both functions were neural networks with 16 inputs (5 sets of 3 numbers for x coordinate, y coordinate, and value for each number, plus a position for the player). The policy network output softmax probabilities for the 3 potential actions, while the value function outputted just the anticipated discounted future rewards from the input state on.
