@@ -52,9 +52,9 @@ After extensive hyperparameter tuning, I'm pleased with these results. What's in
 |Value network learning rate| 3e-4| From PPO paper|
 |Discount factor| 0.97||
 |GAE lambda | 0.95| From PPO paper |
-|Epsilon| 0.1 | For more stable training |
-|Activation function (Both)| tanh | From PPO paper|
-|Minibatch size (Both) | 64 | From PPO paper |
+|Epsilon| 0.2 | From PPO paper |
+|Activation function (both)| tanh | From PPO paper|
+|Minibatch size (both) | 64 | From PPO paper |
 |Timesteps per training iteration | 10,000 | Large number means more stable training|
 |Number of training iterations | 500 | Total of 5 Million timesteps of training |
 |Number of samples for measuring performance| 100 | Makes graph less noisy |
