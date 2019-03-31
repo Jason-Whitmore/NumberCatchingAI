@@ -44,6 +44,17 @@ After extensive hyperparameter tuning, I'm pleased with these results. What's in
 
 
 
+
+
+## Experiment 2 (Epsilon) Results
+
+
+
+## Experiment 3 (Policy function size) Results
+
+
+## Hyperparameters
+
 |Hyperparameter|Value|Notes|
 |--------------|-----|-----|
 |Policy network architecture| 16,64,64,3 |From PPO paper|
@@ -59,10 +70,4 @@ After extensive hyperparameter tuning, I'm pleased with these results. What's in
 |Number of training iterations | 500 | Total of 5 Million timesteps of training |
 |Number of samples for measuring performance| 100 | Makes graph less noisy |
 
-## Experiment 2 (Epsilon) Results
-
-
-
-## Experiment 3 (Policy function size) Results
-
-
+## How to run
