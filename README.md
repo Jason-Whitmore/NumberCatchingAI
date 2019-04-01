@@ -15,34 +15,35 @@ Goals for this project:
 3. Explore the relationship between policy network size and agent performance.
 
 ## The Environment
-Choosing a good environment was the first major obstacle for this project. Many environments exist for reinforcement learning, such as OpenAI's Gym, but I was trying to avoid using potentially heavyweight and difficult to setup environments. I also wanted the environment to have a reasonable state and action space. I ended up creating a simple text based single player game with very simple rules. The game starts on a 25 tall by 15 wide board, with a player's location indicated by a basket represented by a "U". 5 numbers in the range [1,9] are placed, spaced 5 rows apart and at random colomns. The player chooses between staying still, moving left, or moving right during their turn in order to capture the numbers as they fall. Should a number not be "caught", the number's value will be deducted from the player's score. Else, the number is added to the player's score.
+Choosing a good environment was the first major obstacle for this project. Many environments exist for reinforcement learning, such as OpenAI's Gym, but I was trying to avoid using potentially heavyweight and difficult to setup environments. I also wanted the environment to have a reasonable state and action space. I ended up creating a simple text based single player game with very simple rules. The game starts on a 25 tall by 15 wide board, with a player's location indicated by a basket represented by a "U". 5 numbers in the range [1,9] are placed, spaced 5 rows apart and at random columns. The player chooses between staying still, moving left, or moving right during their turn in order to capture the numbers as they fall. Should a number not be "caught", the number's value will be deducted from the player's score. Else, the number is added to the player's score.
 
 This environment requires a reasonable amount of intelligence to play successfully. Players must consider the numbers' location with respect to their bucket, but also make decisions regarding potential points to be earned. For example, players might want to "sacrifice" certain lower value numbers in order to catch a larger number, resulting in more net reward.
 
-Also, since rewards are obtained every 5 timesteps, this environment serves as a good middleground between easier to learn continous reward tasks and much difficult sparse reward tasks.
+Also, since rewards are obtained every 5 timesteps, this environment serves as a good middleground between easier to learn continous reward tasks and much more difficult sparse reward tasks.
 
-The state vector is of size 16. Each of the 5 numbers is represented by row, coloumn coordinates, and the value itself. The 16th number is the player's position.
+The state vector is of size 16. Each of the 5 numbers is represented by row, column coordinates, and the value itself. The 16th number is the player's position.
 
-The action vector is of size 3 for moving left, staying still, and moving right.
+The action vector is of size 3 for the discrete actions of moving left, staying still, and moving right.
 
 ## Human gameplay
-One advantage that this game has for human players is that it is not realtime. Players have an indefinite amount of time to consider their next move. With this in mind, the goal of this project is for the AI agent to have a score comparable to a human's. I played 8 games with 200 turns each and got an average (mean) score of 91 and a sample standard deviation of 26.
+One advantage that this game has for human players is that it is not realtime. Players have an indefinite amount of time to consider their next move. With this in mind, the goal of this project is for the AI agent to have a score comparable to a human's. I played 14 games with 200 turns each and got an average (mean) score of 81 and a sample standard deviation of 22.97.
 
 ## AI Agent
 PPO relies on using 2 neural networks for both training and acting: a value and policy function. Both networks take in the state vector. The policy network output softmax probabilities for the 3 potential actions, while the value function outputted just the anticipated discounted future rewards from the input state onwards.
 
 According to the PPO paper, it's recommended to have a policy and value function to have 2 hidden layers of 64 neurons each. This was probably overkill for this task, but the number wasn't high enough for overfitting, so I stuck with that architecture.
-Probably the most challenging part of implementing the agent was deciding what to set the numerous number of hyperparameters to. What made training more successful was changing the discount rate from .9 to .97, rather than any of the other hyperparameters.
+Probably the most challenging part of implementing the agent was deciding what to set the numerous number of hyperparameters to. What made training more successful was changing the discount rate from 0.9 to 0.95, rather than any of the other hyperparameters.
 
 
 Specific hyperparameters are listed in the results section per experiment.
 
 ## Experiment 1 (Learning) Results
 
+![alt text](https://github.com/Jason-Whitmore/NumberCatchingAI/blob/master/exp1_graph.png "Experiment 1 results")
 
-After extensive hyperparameter tuning, I'm pleased with these results. What's interesting to me is that it takes a long time for the agent to make any meaningful progress on its learning around the iteration ( timestep) mark. I speculate that the semi-sparse  reward nature of the environment significantly slows down training.
+After extensive hyperparameter tuning, I'm pleased with these results. What's interesting to me is that it takes a long time for the agent to break even on score at iteration 200 (or 2 million timesteps). I speculate that this is due to the semi-sparse rewards slowing down training. It's unclear to me why the dips in performance can be so drastic. This might be because the policy is changing too much between iterations.
 
-
+Compared to my personal average score of 81, I would say that this experiment was a success. However, I would use the policy that scored the best versus the most recent policy, since even late in training the score does deviate.
 
 
 
@@ -61,13 +62,27 @@ After extensive hyperparameter tuning, I'm pleased with these results. What's in
 |Value network architecture| 16,64,64,1 |From PPO paper|
 |Policy network learning rate| 3e-2| OK for target probabilities to be a bit off, hence large LR|
 |Value network learning rate| 3e-4| From PPO paper|
-|Discount factor| 0.97||
+|Discount factor| 0.95||
 |GAE lambda | 0.95| From PPO paper |
 |Epsilon| 0.2 | From PPO paper |
 |Activation function (both)| tanh | From PPO paper|
 |Minibatch size (both) | 64 | From PPO paper |
 |Timesteps per training iteration | 10,000 | Large number means more stable training|
-|Number of training iterations | 500 | Total of 5 Million timesteps of training |
+|Number of training iterations | 1000 | Total of 10 Million timesteps of training |
 |Number of samples for measuring performance| 100 | Makes graph less noisy |
 
-## How to run
+## How to run the code
+I've included 2 source files, one with a "_3_6.py" suffix. When I started this project, I originally made a version using python 2.7. I decided to convert over to python 3.6, but for some reason, it ran roughly 3 times slower. This might've been due to my installation of tensorflow/keras/python on a separate machine. The only difference code wise is that the 3.6 file has different print statements and input function calls.
+
+Prerequisites (standard ML/AI libraries):
+1. Tensorflow
+
+2. Keras
+
+3. Numpy
+
+Compilation example: `python NumberCatchingAI.py w`
+
+When running the program, you must supply a single extra command line arg, 't','p', or 'w'. 't' will train the agent, 'p' allows you to play the game yourself, 'w' will let you watch the policy stored in "BestPolicy.h5"
+
+Note: Training takes a very long time. 10 million timesteps takes 16 hours on a laptop with a 2.2 Ghz clock speed. I'd recommend skipping training and watching with the best policy. Please feel free to redownload/clone this repo if you unintentionally overwrote the h5 file.
