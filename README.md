@@ -41,7 +41,7 @@ Specific hyperparameters are listed in the results section per experiment.
 
 ![alt text](https://github.com/Jason-Whitmore/NumberCatchingAI/blob/master/exp1_graph.png "Experiment 1 results")
 
-After extensive hyperparameter tuning, I'm pleased with these results. What's interesting to me is that it takes a long time for the agent to break even on score at iteration 200 (or 2 million timesteps). I speculate that this is due to the semi-sparse rewards slowing down training. It's unclear to me why the dips in performance can be so drastic. This might be because the policy is changing too much between iterations.
+After extensive hyperparameter tuning, I'm pleased with these results. What's interesting to me is that it takes a long time for the agent to break even on score at iteration 200 (or 2 million timesteps). I speculate that this is due to the semi-sparse rewards slowing down training. Dips in performance are likely due to the policy diverging because of changes being to drastic.
 
 Compared to my personal average score of 81, I would say that this experiment was a success. However, I would use the policy that scored the best versus the most recent policy, since even late in training the score does deviate.
 
@@ -49,6 +49,15 @@ Compared to my personal average score of 81, I would say that this experiment wa
 
 ## Experiment 2 (Epsilon) Results
 
+![alt text](https://github.com/Jason-Whitmore/NumberCatchingAI/blob/master/exp2_graph.png "Experiment 2 results")
+
+Note: Epsilon = 0.2 data is the same data from experiment 1, for simplicity.
+
+The epsilon hyperparameter seems to work as intended. Over the course of training, especially on experiment 1, the performance can drop dramatically, presumably when the policy diverges too much. As the PPO paper says, the epsilon can be adjusted to control how much the policy should change.
+
+As seen from this experiment, epsilon values of 0.2 and 0.3 resulted in both faster training, but also more diverges in the policy function. The epsilon value of 0.1 resulted in very stable and slow training which only diverged near the end.
+
+This experiment would be further improved if I collected more than one training run per epsilon to better illustrate results. However, one run does take 16 hours on my machine, so it's not feasible for me to collect more data.
 
 
 ## Experiment 3 (Policy function size) Results
