@@ -2,7 +2,7 @@
 An exploratory project of deep reinforcement learning inside of a custom environment
 
 ## Introduction
-Reinforcement learning is interesting to me because it's a very active area of interest and the possibilities for applications are very exciting. However, like any fast moving field, it proved to be a challenge for a beginner like me to truly understand what the algorithms did and notation really meant. Resources online were often vague, and many guides on implementing algorithms relied on handy-wavy explanations.
+Reinforcement learning is interesting to me because it's a very active area of interest and the possibilities for applications are very exciting. However, like any fast moving field, it proved to be a challenge for a beginner like me to truly understand what the algorithms did and notation really meant. Resources online were often vague, and many guides on implementing algorithms relied on hand-wavy explanations.
 
 I decided that the best way to enter the world of reinforcement learning was to implement the Proximal Policy Optimization algorithm from the ground up (with exception to my use of tensorflow/keras for neural network functionality, which I've done from scratch in the past in C++).
 
@@ -117,3 +117,11 @@ When running the program, you must supply a single extra command line arg, 't','
 During training, the program will output a .csv file in append mode containing training statistics, including iteration, current mean score, and mean probability for actions taken (confidence).
 
 Note: Training takes a very long time. 10 million timesteps takes 16 hours on a laptop with a 2.2 Ghz clock speed. I'd recommend skipping training and watching with the best policy. Please feel free to redownload/clone this repo if you unintentionally overwrote the h5 file.
+
+## Conclusion
+
+Overall, I am satisfied with the outcome of this project. The 3 experiments I conducted demonstrated the performance and robustness of the PPO algorithm.
+
+The environment itself turned out to be a fantastic testbed in terms of skill needed to play and difficulty of training due to the semi-sparse reward function. It's possible I'll return to this environment in the future to test a different algorithm on it.
+
+Given more time, I would certainly try and speed up the training process. Faster training would allow more data to be collected, which would produce more accurate experimental results.
