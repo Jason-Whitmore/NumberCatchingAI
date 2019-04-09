@@ -61,7 +61,21 @@ This experiment would be further improved if I collected more than one training 
 
 
 ## Experiment 3 (Policy function size) Results
+![alt text](https://github.com/Jason-Whitmore/NumberCatchingAI/blob/master/exp3_graph.png "Experiment 3 results")
 
+For this experiment, I ran one training session per policy function size, then retrieved the highest score it ever achieved for the data point.
+
+The results are close to what I expected. Small amounts of parameters don't perform as well compared to more parameters. However, large amounts of parameters offer diminishing returns.
+
+The largest policy plotted, with 2 hidden layers of 32 nodes, performed just as well as experiment 1's 64 node hidden layer size. Ideally, we would choose the smallest policy that still achieves optimal results, as experiment 1's policy would be more prone to overfitting and would train slightly slower.
+
+|Policy architecture|Number of parameters|Best score|
+|-------------------|--------------------|----------|
+|16,8,8,3|235|-170|
+|16,12,12,3|399|31.3|
+|16,16,16,3|595|53.51|
+|16,24,24,3|1083|38.86|
+|16,32,32,3|1699|85.21|
 
 ## Hyperparameters
 
@@ -93,5 +107,7 @@ Prerequisites (standard ML/AI libraries):
 Compilation example: `python NumberCatchingAI.py w`
 
 When running the program, you must supply a single extra command line arg, 't','p', or 'w'. 't' will train the agent, 'p' allows you to play the game yourself, 'w' will let you watch the policy stored in "BestPolicy.h5"
+
+During training, the program will output a .csv file in append mode containing training statistics, including iteration, current mean score, and mean probability for actions taken (confidence).
 
 Note: Training takes a very long time. 10 million timesteps takes 16 hours on a laptop with a 2.2 Ghz clock speed. I'd recommend skipping training and watching with the best policy. Please feel free to redownload/clone this repo if you unintentionally overwrote the h5 file.
