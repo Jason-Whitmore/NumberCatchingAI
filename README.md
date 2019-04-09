@@ -124,4 +124,4 @@ Overall, I am satisfied with the outcome of this project. The 3 experiments I co
 
 The environment itself turned out to be a fantastic testbed in terms of skill needed to play and difficulty of training due to the semi-sparse reward function. It's possible I'll return to this environment in the future to test a different algorithm on it.
 
-Given more time, I would certainly try and speed up the training process. Faster training would allow more data to be collected, which would produce more accurate experimental results.
+Given more time, I would certainly try to speed up the training process. Faster training would allow more data to be collected, which would produce more accurate experimental results.
