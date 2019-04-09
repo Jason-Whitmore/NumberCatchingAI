@@ -17,7 +17,13 @@ Goals for this project:
 ## The Environment
 Choosing a good environment was the first major obstacle for this project. Many environments exist for reinforcement learning, such as OpenAI's Gym, but I was trying to avoid using potentially heavyweight and difficult to setup environments. I also wanted the environment to have a reasonable state and action space. I ended up creating a simple text based single player game with very simple rules. The game starts on a 25 tall by 15 wide board, with a player's location indicated by a basket represented by a "U". 5 numbers in the range [1,9] are placed, spaced 5 rows apart and at random columns. The player chooses between staying still, moving left, or moving right during their turn in order to capture the numbers as they fall. Should a number not be "caught", the number's value will be deducted from the player's score. Else, the number is added to the player's score.
 
+![alt text](https://github.com/Jason-Whitmore/NumberCatchingAI/blob/master/gameplay_screenshot1.png "Gameplay")
+
 This environment requires a reasonable amount of intelligence to play successfully. Players must consider the numbers' location with respect to their bucket, but also make decisions regarding potential points to be earned. For example, players might want to "sacrifice" certain lower value numbers in order to catch a larger number, resulting in more net reward.
+
+![alt text](https://github.com/Jason-Whitmore/NumberCatchingAI/blob/master/gameplay_screenshot2.png "Gameplay")
+
+In the above example, choosing the route in red would result in quicker rewards, but would also be a net loss of score in the long run. The green route, however, would result in a net gain in score, since 8 + 4 - 5 - 4 > 5 + 4 - 8 - 4 (or +3 green vs -3 red). Long term thinking like this is a must for optimal play.
 
 Also, since rewards are obtained every 5 timesteps, this environment serves as a good middleground between easier to learn continous reward tasks and much more difficult sparse reward tasks.
 
@@ -90,8 +96,8 @@ The largest policy plotted, with 2 hidden layers of 32 nodes, performed just as 
 |Epsilon| 0.2 | From PPO paper |
 |Activation function (both)| tanh | From PPO paper|
 |Minibatch size (both) | 64 | From PPO paper |
-|Timesteps per training iteration | 10,000 | Large number means more stable training|
-|Number of training iterations | 1000 | Total of 10 Million timesteps of training |
+|Timesteps per training iteration | 10000 | Large number means more stable training|
+|Number of training iterations | 1000 | Total of 10 million timesteps of training |
 |Number of samples for measuring performance| 100 | Makes graph less noisy |
 
 ## How to run the code
