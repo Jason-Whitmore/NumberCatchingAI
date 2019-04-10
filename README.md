@@ -47,7 +47,7 @@ Specific hyperparameters are listed in the results section per experiment.
 
 ![alt text](https://github.com/Jason-Whitmore/NumberCatchingAI/blob/master/exp1_graph.png "Experiment 1 results")
 
-After extensive hyperparameter tuning, I'm pleased with these results. What's interesting to me is that it takes a long time for the agent to break even on score at iteration 200 (or 2 million timesteps). I speculate that this is due to the semi-sparse rewards slowing down training. Dips in performance are likely due to the policy diverging because of changes being to drastic.
+After extensive hyperparameter tuning, I'm pleased with these results. What's interesting to me is that it takes a long time for the agent to break even on score at iteration 200 (or 2 million timesteps). I speculate that this is due to the semi-sparse rewards slowing down training. Dips in performance are likely due to the policy diverging because of changes being too drastic.
 
 Compared to my personal average score of 81, I would say that this experiment was a success. However, I would use the policy that scored the best versus the most recent policy, since even late in training the score does deviate.
 
